@@ -1,0 +1,149 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "viop-ai-backend"
+version = "0.1.0"
+description = "VIOP AI Market Intelligence - analysis and decision-support backend"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+
+# Every dependency below is justified against the master specification.
+# Adding a dependency without a reason violates section 106.
+dependencies = [
+    "fastapi>=0.115",          # section 94: API framework
+    "uvicorn[standard]>=0.30",  # ASGI server
+    "pydantic>=2.7",            # section 94: Pydantic v2 (API edge + settings)
+    "pydantic-settings>=2.3",   # section 98: configuration via environment variables
+    "sqlalchemy>=2.0",          # section 94: ORM, persistence adapter only
+    "alembic>=1.13",            # section 94: schema migrations
+    "psycopg[binary]>=3.1",     # section 94: PostgreSQL driver
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",              # section 99: mandatory testing
+    "pytest-asyncio>=0.23",     # section 99: async tests
+    "httpx>=0.27",              # ASGI test client for FastAPI
+    "ruff>=0.5",                # section 100: lint + format
+    "mypy>=1.10",               # section 100: strict typing
+    "import-linter>=2.0",       # sections 94/95: enforce dependency direction
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# --------------------------------------------------------------------------
+# Ruff - section 100
+# --------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # import sorting
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "ANN",      # missing type annotations
+    "S",        # bandit security rules
+    "C4", "SIM", "RET", "PTH", "N",
+]
+ignore = [
+    "ANN401",  # allow explicit `object`/Any-like escape hatches where documented
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "ANN"]  # asserts and fixture secrets are expected
+"alembic/**" = ["ANN", "N", "E501"]  # generated migration scaffolding
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+# --------------------------------------------------------------------------
+# mypy strict - section 100
+# --------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+disallow_any_explicit = false
+plugins = []
+files = ["app", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["alembic.*"]
+ignore_errors = true
+
+# --------------------------------------------------------------------------
+# pytest - section 99
+# --------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers"
+markers = [
+    "unit: pure in-process test, no external services",
+    "integration: requires a reachable PostgreSQL instance",
+]
+
+# --------------------------------------------------------------------------
+# import-linter - sections 94/95 dependency direction, enforced mechanically
+# --------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "app"
+# Required so that forbidden third-party modules (fastapi, sqlalchemy, ...)
+# are visible to the contracts, not only first-party ones.
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Domain is pure: no framework, no infrastructure, no outer layers"
+type = "forbidden"
+source_modules = ["app.domain"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "alembic",
+    "anthropic",
+    "httpx",
+    "requests",
+    "pydantic",
+    "pydantic_settings",
+    "app.application",
+    "app.adapters",
+    "app.api",
+    "app.core",
+]
+
+[[tool.importlinter.contracts]]
+name = "Application depends only on domain, never on infrastructure or API"
+type = "forbidden"
+source_modules = ["app.application"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "alembic",
+    "anthropic",
+    "httpx",
+    "requests",
+    "app.adapters",
+    "app.api",
+]
+
+[[tool.importlinter.contracts]]
+name = "Adapters never depend on the API layer"
+type = "forbidden"
+source_modules = ["app.adapters"]
+forbidden_modules = ["app.api"]
+
+[[tool.importlinter.contracts]]
+name = "API route and schema modules never reach into adapters directly"
+type = "forbidden"
+source_modules = ["app.api.routes", "app.api.schemas"]
+forbidden_modules = ["app.adapters", "sqlalchemy"]

@@ -1,0 +1,41 @@
+# --- Secrets: never commit (master spec section 98) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.import_linter_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# --- Node ---
+node_modules/
+frontend/dist/
+frontend/coverage/
+.vite/
+*.tsbuildinfo
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Runtime artifacts ---
+*.log
+uploads/
+tmp/
+frontend/*.tsbuildinfo

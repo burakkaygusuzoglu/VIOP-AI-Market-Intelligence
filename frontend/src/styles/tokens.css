@@ -1,0 +1,147 @@
+/*
+ * Dark-mode-first workstation palette (master spec section 88).
+ * Semantic colour is always paired with a text label or icon so that meaning
+ * never depends on colour alone.
+ */
+:root {
+  color-scheme: dark;
+
+  --color-bg: #0d1117;
+  --color-surface: #151b23;
+  --color-surface-raised: #1c232c;
+  --color-border: #2a313c;
+
+  --color-text: #e6edf3;
+  --color-text-muted: #9aa7b4;
+
+  --color-bullish: #3fb950;
+  --color-bearish: #f85149;
+  --color-waiting: #d29922;
+  --color-neutral: #58a6ff;
+  --color-inactive: #6e7681;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius: 6px;
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.app__title {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.2px;
+}
+
+.app__tagline {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.panel__title {
+  margin: 0 0 var(--space-3);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.status-badge__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-inactive);
+}
+
+.status-badge--ok .status-badge__dot {
+  background: var(--color-bullish);
+}
+
+.status-badge--degraded .status-badge__dot {
+  background: var(--color-waiting);
+}
+
+.status-badge--error .status-badge__dot {
+  background: var(--color-bearish);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.detail-grid dt {
+  color: var(--color-text-muted);
+}
+
+.detail-grid dd {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.notice {
+  border-left: 3px solid var(--color-neutral);
+  padding-left: var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.notice--warning {
+  border-left-color: var(--color-waiting);
+}
+
+button {
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--color-neutral);
+}

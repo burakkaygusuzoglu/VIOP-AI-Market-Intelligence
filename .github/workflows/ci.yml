@@ -1,0 +1,140 @@
+# Validation only. No deployment, no release, no cloud, no publishing.
+# Enforces exactly the gates that already run locally, so a green local run
+# and a green CI run mean the same thing.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: viop
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: viop_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U viop -d viop_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: viop
+      POSTGRES_PASSWORD: ci-password
+      POSTGRES_DB: viop_test
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff check
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: mypy strict
+        run: mypy
+
+      - name: Architecture contracts
+        run: lint-imports
+
+      - name: Tests
+        # Integration tests run against the postgres service above; they skip
+        # themselves only when no database is reachable, never silently.
+        run: pytest -v
+
+      - name: Alembic migration against PostgreSQL
+        run: |
+          alembic upgrade head
+          alembic current
+          alembic downgrade base
+          alembic upgrade head
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npx tsc -b
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier check
+        run: npm run format:check
+
+      - name: Tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate compose configuration
+        env:
+          POSTGRES_PASSWORD: ci-validation-only
+        run: docker compose config
+
+      - name: Build backend image
+        run: docker build -t viop-ai-backend:ci backend
+
+      - name: Build frontend image
+        run: docker build -t viop-ai-frontend:ci frontend

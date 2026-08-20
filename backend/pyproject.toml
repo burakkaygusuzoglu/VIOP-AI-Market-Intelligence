@@ -143,6 +143,16 @@ source_modules = ["app.adapters"]
 forbidden_modules = ["app.api"]
 
 [[tool.importlinter.contracts]]
+# Phase 1. Indicator mathematics is the numerical authority (master spec
+# section 1) and is tested and type-checked as such. An adapter that computed
+# an average would move a financial calculation outside that guarantee, so the
+# rule is mechanical rather than a review habit.
+name = "Adapters never compute indicators"
+type = "forbidden"
+source_modules = ["app.adapters"]
+forbidden_modules = ["app.domain.technical"]
+
+[[tool.importlinter.contracts]]
 name = "API route and schema modules never reach into adapters directly"
 type = "forbidden"
 source_modules = ["app.api.routes", "app.api.schemas"]

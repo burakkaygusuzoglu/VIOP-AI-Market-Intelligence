@@ -37,7 +37,10 @@ Declared as import-linter contracts in `backend/pyproject.toml` and executed by
    anthropic, httpx, requests, pydantic, pydantic-settings, or any outer layer.
 2. **Application depends only on domain** — no infrastructure, no API layer.
 3. **Adapters never import the API layer.**
-4. **API routes and schemas never reach into adapters or SQLAlchemy.**
+4. **Adapters never compute indicators** — `app.adapters` may not import
+   `app.domain.technical`. Indicator mathematics is the numerical authority and
+   stays where it is tested and type-checked as such. *(Phase 1)*
+5. **API routes and schemas never reach into adapters or SQLAlchemy.**
 
 These are verified to actually fail when violated; the check is not decorative.
 
@@ -50,8 +53,8 @@ that owns them, so the tree never contains empty placeholders.
 backend/app/
 ├── domain/
 │   ├── common/        enums, VerifiedValue                  [Phase 0]
-│   ├── market/        Candle                                [Phase 0]
-│   ├── technical/     EMA, RSI, ATR, VWAP, MACD, ADX, BB    (phase 1)
+│   ├── market/        Candle, series, Data Quality Engine   [Phase 0/1]
+│   ├── technical/     EMA, RSI, ATR, VWAP, MACD, ADX, BB    [Phase 1]
 │   ├── structure/     swings, BOS/CHOCH, S/R, regime        (phase 2)
 │   ├── futures/       FuturesContract, basis, OI            (phase 3)
 │   ├── risk/          sizing, limits, margin, P&L           (phase 3)
@@ -60,14 +63,14 @@ backend/app/
 │   ├── trading/       paper positions, lifecycle            (phase 9)
 │   └── backtest/      historical evaluation                 (phase 12)
 ├── application/
-│   ├── ports/         market_data, ai, system               [Phase 0]
+│   ├── ports/         market_data, ai, system               [Phase 0/1]
 │   ├── dto/           system                                [Phase 0]
-│   ├── use_cases/     get_system_health                     [Phase 0]
+│   ├── use_cases/     get_system_health, load_market_data   [Phase 0/1]
 │   └── services/                                            (phase 4+)
 ├── adapters/
 │   ├── persistence/   Base, Database, health probe          [Phase 0]
 │   ├── system/        SystemClock                           [Phase 0]
-│   ├── market_data/   CSV, mock, historical providers       (phase 1)
+│   ├── market_data/   CSV + deterministic synthetic         [Phase 1]
 │   ├── ai/            Claude adapter                        (phase 6)
 │   └── news/                                                (phase 15)
 ├── api/
@@ -82,7 +85,8 @@ backend/app/
 
 | Port | Status | Owner phase |
 | --- | --- | --- |
-| `HistoricalMarketDataProvider` | Defined, no implementation | 1 |
+| `HistoricalMarketDataProvider` | Defined + CSV and synthetic adapters | 0 / 1 |
+| `DiagnosticHistoricalMarketDataProvider` | Optional capability + CSV adapter | 1 |
 | `AIProvider` | Defined, no implementation | 6 / 7 |
 | `ClockPort` | Defined + `SystemClock` | 0 |
 | `DatabaseHealthPort` | Defined + SQLAlchemy adapter | 0 |
@@ -97,16 +101,27 @@ with `Any` to create it early is worse than not having it.
 
 ## Cross-cutting decisions
 
-**Decimal, not float.** Every price, quantity and money amount is `Decimal`.
-Indicator internals may use float in a later phase, but values crossing a
-domain boundary are rounded to tick and expressed as `Decimal`.
+**Decimal at the data boundary, float inside the indicators.** Candle OHLCV
+and every money amount is `Decimal`. Indicator mathematics is `float` — EMA,
+Wilder smoothing and standard deviation are irrational-valued recursions, and
+`Decimal` would carry precision the mathematics does not have. The single
+sanctioned crossing is the `float_*()` accessors on `ValidatedCandleSeries`;
+nothing converts back. Quantizing a level to the tick size waits for Phase 3,
+when the tick size is a verified fact rather than a guess. Full policy in
+`technical_conventions.md`.
 
 **Time is injected.** Nothing reads the wall clock directly; it comes from
 `ClockPort`. Replay and backtest can then supply historical time, and no engine
 can observe a timestamp from the future.
 
 **Forming vs closed.** `Candle.is_closed` exists from the first day so a
-forming bar can never be silently treated as a confirmed signal.
+forming bar can never be silently treated as a confirmed signal. From Phase 1
+the Data Quality Engine blocks a forming candle from any historical dataset.
+
+**Validation is a type, not a habit.** Indicators accept only
+`ValidatedCandleSeries`, which the Data Quality Engine produces and whose
+structural invariants are enforced in its constructor. A provider cannot
+bypass validation without a type error.
 
 **Provenance.** `VerifiedValue[T]` binds a financial fact to how it was
 obtained. `require_authoritative()` refuses to release a development default,

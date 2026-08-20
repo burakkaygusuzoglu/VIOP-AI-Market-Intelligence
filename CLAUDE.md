@@ -82,7 +82,8 @@ engines; only the data provider changes.
 ./.venv/Scripts/python.exe -m pytest
 ./.venv/Scripts/python.exe -m ruff check .
 ./.venv/Scripts/python.exe -m ruff format --check .
-./.venv/Scripts/python.exe -m mypy
+./.venv/Scripts/python.exe -m mypy --platform linux
+./.venv/Scripts/python.exe -m mypy --platform win32
 ./.venv/Scripts/lint-imports
 
 # Frontend (from frontend/)
@@ -110,13 +111,14 @@ if it actually ran and actually passed.
 
 ## Platform traps already paid for
 
-Three bugs were invisible on the host and only appeared in the container, or
-vice versa. Do not re-introduce them:
+Four bugs were invisible on the host and only appeared in the container or in
+CI, or vice versa. Do not re-introduce them:
 
 1. **Windows event loop.** psycopg's async mode cannot run on the default
    `ProactorEventLoop`. `app/core/runtime.py` installs a selector policy, and it
    must run *before* the loop is created — hence `python -m app` and the
    `configure_event_loop_policy()` call at the top of `tests/conftest.py`.
+   Its *shape* is load-bearing too — see trap 4.
 2. **Environment-variable parsing.** pydantic-settings JSON-decodes complex
    types from the environment before field validators run. `cors_origins` needs
    `NoDecode`. Tests that use `Settings(...)` or `model_validate` bypass this
@@ -124,3 +126,11 @@ vice versa. Do not re-introduce them:
 3. **Connect timeouts.** Without `connect_args={"connect_timeout": ...}` a probe
    against an unroutable host blocks for over two minutes and stalls the health
    endpoint.
+4. **mypy is platform-specific.** It resolves `sys.platform` for the platform it
+   targets and eliminates the branch that cannot be taken, so a single-platform
+   run proves nothing about the other. Any module that branches on the platform
+   must keep every platform-dependent statement *inside* a branch of the
+   `sys.platform` test, with control flow rejoining afterwards, and must compare
+   against the literal `"win32"` — a named constant disables mypy's narrowing.
+   Always run mypy for both `--platform linux` and `--platform win32`;
+   `tests/unit/test_runtime.py` checks the platform-sensitive modules both ways.

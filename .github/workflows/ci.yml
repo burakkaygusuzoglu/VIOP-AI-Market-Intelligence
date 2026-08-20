@@ -68,8 +68,15 @@ jobs:
       - name: Ruff format check
         run: ruff format --check .
 
-      - name: mypy strict
-        run: mypy
+      - name: mypy strict (Linux and Windows targets)
+        # mypy narrows sys.platform to the platform it is checking for, so a
+        # single-platform run can pass on one OS and fail on another - which is
+        # exactly how the first CI run failed on a module that was clean
+        # locally. Both targets are checked here; the runner's own OS is
+        # irrelevant to the result.
+        run: |
+          mypy --platform linux
+          mypy --platform win32
 
       - name: Architecture contracts
         run: lint-imports

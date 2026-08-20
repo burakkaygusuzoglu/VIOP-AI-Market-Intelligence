@@ -85,7 +85,8 @@ py -3.14 -m venv .venv            # Windows;  python3 -m venv .venv elsewhere
 ./.venv/Scripts/python.exe -m pytest              # tests
 ./.venv/Scripts/python.exe -m ruff check .        # lint
 ./.venv/Scripts/python.exe -m ruff format --check .
-./.venv/Scripts/python.exe -m mypy                # strict type check
+./.venv/Scripts/python.exe -m mypy --platform linux   # strict type check
+./.venv/Scripts/python.exe -m mypy --platform win32   # ... and for the other OS
 ./.venv/Scripts/lint-imports                      # architecture contracts
 ./.venv/Scripts/python.exe -m app                 # run the API locally
 ```
@@ -94,6 +95,10 @@ Use `python -m app` rather than the `uvicorn` CLI on Windows: psycopg's
 async mode cannot run on the default `ProactorEventLoop`, and the loop
 policy has to be set before uvicorn creates the loop. On Linux and macOS
 the two are equivalent, which is why the containers call uvicorn directly.
+
+mypy is run once per target platform because it resolves `sys.platform` for
+the platform it is checking, so a single run can pass on one OS and fail on
+another. CI runs both targets for the same reason.
 
 ```bash
 # Integration tests against a real database

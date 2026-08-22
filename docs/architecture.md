@@ -37,10 +37,17 @@ Declared as import-linter contracts in `backend/pyproject.toml` and executed by
    anthropic, httpx, requests, pydantic, pydantic-settings, or any outer layer.
 2. **Application depends only on domain** — no infrastructure, no API layer.
 3. **Adapters never import the API layer.**
-4. **Adapters never compute indicators** — `app.adapters` may not import
-   `app.domain.technical`. Indicator mathematics is the numerical authority and
-   stays where it is tested and type-checked as such. *(Phase 1)*
-5. **API routes and schemas never reach into adapters or SQLAlchemy.**
+4. **Adapters never compute indicators or market structure** — `app.adapters`
+   may not import `app.domain.technical` or `app.domain.structure`. Indicator
+   mathematics and structural analysis are the numerical authority and stay
+   where they are tested and type-checked as such. *(Phase 1, widened in
+   Phase 2)*
+5. **The technical engine does not depend on market structure** —
+   `app.domain.technical` may not import `app.domain.structure`. The dependency
+   runs one way, so Phase 1 indicators stay usable on their own and an
+   indicator cannot reach for structure and create a circular definition.
+   *(Phase 2)*
+6. **API routes and schemas never reach into adapters or SQLAlchemy.**
 
 These are verified to actually fail when violated; the check is not decorative.
 
@@ -55,7 +62,7 @@ backend/app/
 │   ├── common/        enums, VerifiedValue                  [Phase 0]
 │   ├── market/        Candle, series, Data Quality Engine   [Phase 0/1]
 │   ├── technical/     EMA, RSI, ATR, VWAP, MACD, ADX, BB    [Phase 1]
-│   ├── structure/     swings, BOS/CHOCH, S/R, regime        (phase 2)
+│   ├── structure/     swings, BOS/CHOCH, S/R, regime        [Phase 2]
 │   ├── futures/       FuturesContract, basis, OI            (phase 3)
 │   ├── risk/          sizing, limits, margin, P&L           (phase 3)
 │   ├── setups/        evidence fusion, quality, NO TRADE    (phase 4)
@@ -122,6 +129,27 @@ the Data Quality Engine blocks a forming candle from any historical dataset.
 `ValidatedCandleSeries`, which the Data Quality Engine produces and whose
 structural invariants are enforced in its constructor. A provider cannot
 bypass validation without a type error.
+
+**Discovery time is separate from event time.** *(Phase 2)* Structure is
+recognised late: a swing pivot at candle 100 with a two-candle confirmation
+window does not exist until candle 102. So every Phase 2 fact carries both
+where it happened and when it could first have been known — `pivot_index` with
+`confirmed_index` on a swing, `confirmed_index` on structural events,
+breakouts, false breakouts, retests and divergences. Downstream code asks what
+was known at a candle, never what turned out to be true later. A false breakout
+is therefore a separate event stamped at the candle that revealed the failure,
+and the breach it invalidates is never rewritten.
+
+**Structure depends on indicators, never the reverse.** *(Phase 2)*
+`app/domain/structure/` consumes `TechnicalSnapshot` for ATR, ADX, EMA and
+volume, and computes no indicator of its own. There is exactly one
+implementation of each formula in the codebase.
+
+**Classification may decline to classify.** *(Phase 2)* `StructureBias` has
+`AMBIGUOUS` and `INSUFFICIENT`; `StructuralEventType` has `LEVEL_BREAK` for a
+break with no directional structure behind it; `MarketRegime` has `UNCERTAIN`
+and `CHAOTIC`. These are first-class outputs, not fallbacks — master spec
+section 2 forbids manufacturing confidence the evidence does not support.
 
 **Provenance.** `VerifiedValue[T]` binds a financial fact to how it was
 obtained. `require_authoritative()` refuses to release a development default,

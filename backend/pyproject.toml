@@ -147,10 +147,20 @@ forbidden_modules = ["app.api"]
 # section 1) and is tested and type-checked as such. An adapter that computed
 # an average would move a financial calculation outside that guarantee, so the
 # rule is mechanical rather than a review habit.
-name = "Adapters never compute indicators"
+name = "Adapters never compute indicators or market structure"
 type = "forbidden"
 source_modules = ["app.adapters"]
-forbidden_modules = ["app.domain.technical"]
+forbidden_modules = ["app.domain.technical", "app.domain.structure"]
+
+[[tool.importlinter.contracts]]
+# Phase 2. The dependency runs structure -> technical and never back. Phase 1
+# indicators must stay usable on their own - by a replay harness, a backtest or
+# a chart - without dragging in swing detection, and an indicator that reached
+# for market structure would be a circular definition waiting to happen.
+name = "The technical engine does not depend on market structure"
+type = "forbidden"
+source_modules = ["app.domain.technical"]
+forbidden_modules = ["app.domain.structure"]
 
 [[tool.importlinter.contracts]]
 name = "API route and schema modules never reach into adapters directly"

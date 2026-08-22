@@ -1,12 +1,19 @@
-"""Volatility: True Range, ATR and Bollinger Bands (master spec section 11)."""
+"""Volatility: True Range, ATR, Bollinger Bands and historical volatility.
+
+Master spec section 11. ``historical_volatility`` arrived in Phase 2 - Phase 1
+deferred it because section 103 did not name it, and Phase 2 regime
+classification needs a volatility context that ATR alone does not give.
+"""
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.domain.technical.smoothing import rolling_population_stdev, sma, wilder
 from app.domain.technical.types import (
+    IndicatorInputError,
     IndicatorValues,
     compact,
     pad,
@@ -130,3 +137,66 @@ def bollinger_bands(
             lower.append(centre - multiplier * sigma)
 
     return BollingerBands(upper=tuple(upper), middle=middle, lower=tuple(lower))
+
+
+def log_returns(closes: Sequence[float]) -> IndicatorValues:
+    """Continuously compounded returns, ``ln(close[i] / close[i-1])``.
+
+    Log rather than simple returns: they are additive over time and symmetric
+    in direction, so a +10% move followed by a -10% move sums to a small
+    negative number instead of appearing to net to zero. Undefined at index 0,
+    where there is no previous close.
+    """
+    require_finite(closes, name="closes")
+    for index, close in enumerate(closes):
+        if close <= 0:
+            raise IndicatorInputError(f"closes[{index}] must be positive, got {close!r}")
+
+    result: list[float | None] = [None] * len(closes)
+    for index in range(1, len(closes)):
+        result[index] = math.log(closes[index] / closes[index - 1])
+    return tuple(result)
+
+
+def historical_volatility(closes: Sequence[float], period: int = 20) -> IndicatorValues:
+    """Standard deviation of log returns over a trailing window.
+
+    **Per candle, and deliberately not annualised.**
+
+    An annualised figure needs the number of trading periods in a year, and
+    that is a property of the VIOP trading calendar - session hours, holidays,
+    whether an evening session counts. Master spec section 118 forbids assuming
+    such a fact from memory, and this one is unusually dangerous because the
+    mistake is invisible: multiply by ``sqrt(252)`` for an instrument that
+    trades a different number of sessions and the answer is still a
+    plausible-looking percentage, merely wrong. The widely copied 252 describes
+    US equities and has never been verified for this exchange.
+
+    So this returns the standard deviation of a single candle's log return, as
+    a fraction: ``0.012`` means 1.2% per candle of the series' own timeframe.
+    That is comparable across instruments and across time, which is everything
+    the regime engine needs. If a verified trading calendar ever arrives,
+    annualising is one multiplication away - and that constant should arrive as
+    a ``VerifiedValue`` recording its source.
+
+    Convention:
+
+    * Returns are ``ln(close[i] / close[i-1])``, first defined at index 1.
+    * The deviation is the **population** form over ``period`` returns, the same
+      convention as the Bollinger bands above, so the two volatility measures in
+      this module cannot silently disagree.
+    * First value at index ``period`` - one later than an SMA of the same
+      period, because index 0 yields no return.
+    * A constant price gives exactly ``0.0``, which is correct rather than
+      degenerate.
+    """
+    require_period(period)
+    require_finite(closes, name="closes")
+    total = len(closes)
+    if total < 2:
+        return (None,) * total
+
+    returns = log_returns(closes)
+    offset, dense = compact(returns)
+    deviation = rolling_population_stdev(dense, period)
+    return pad(offset, list(deviation), total)

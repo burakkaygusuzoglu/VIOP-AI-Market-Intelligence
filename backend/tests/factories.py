@@ -128,3 +128,38 @@ def ohlcv_series(
         for position in range(len(closes))
     )
     return ValidatedCandleSeries(candles=built, symbol=symbol, timeframe=timeframe)
+
+
+def pivot_series(
+    highs: Sequence[float],
+    lows: Sequence[float] | None = None,
+    closes: Sequence[float] | None = None,
+    volumes: Sequence[float] | None = None,
+) -> ValidatedCandleSeries:
+    """A series shaped by its highs, for structural tests.
+
+    ``lows`` defaults to one unit below each high and ``closes`` to the
+    midpoint, which keeps the OHLC envelope valid while letting a test write
+    only the shape it cares about.
+    """
+    low_values = list(lows) if lows is not None else [value - 1.0 for value in highs]
+    close_values = (
+        list(closes)
+        if closes is not None
+        else [(high + low) / 2 for high, low in zip(highs, low_values, strict=True)]
+    )
+    return ohlcv_series(list(highs), low_values, close_values, volumes)
+
+
+def prefix_of(series: ValidatedCandleSeries, count: int) -> ValidatedCandleSeries:
+    """The first ``count`` candles as a series in their own right.
+
+    The whole no-look-ahead argument rests on this: analysing a prefix is
+    exactly what the engine would have seen in real time at that candle, so
+    anything it reports there must survive the arrival of later candles.
+    """
+    return ValidatedCandleSeries(
+        candles=series.candles[:count],
+        symbol=series.symbol,
+        timeframe=series.timeframe,
+    )

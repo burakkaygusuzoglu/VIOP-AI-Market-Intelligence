@@ -147,10 +147,33 @@ forbidden_modules = ["app.api"]
 # section 1) and is tested and type-checked as such. An adapter that computed
 # an average would move a financial calculation outside that guarantee, so the
 # rule is mechanical rather than a review habit.
-name = "Adapters never compute indicators or market structure"
+name = "Adapters never compute indicators, structure, risk or contract maths"
 type = "forbidden"
 source_modules = ["app.adapters"]
-forbidden_modules = ["app.domain.technical", "app.domain.structure"]
+forbidden_modules = [
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.risk",
+]
+
+[[tool.importlinter.contracts]]
+# Phase 3. The risk engine is the numerical authority for money (master spec
+# sections 1 and 42) and must stay reusable identically by live, replay,
+# backtest, paper trading and shadow mode. Reaching into market structure or
+# indicators would couple a P&L figure to an analysis opinion, and section 45's
+# volatility-aware warnings are deferred precisely so that coupling does not
+# arrive by accident.
+name = "The risk engine depends only on contract facts, never on analysis"
+type = "forbidden"
+source_modules = ["app.domain.risk"]
+forbidden_modules = ["app.domain.structure", "app.domain.technical"]
+
+[[tool.importlinter.contracts]]
+# Phase 3. Futures contract facts are inputs to analysis, never outputs of it.
+name = "The futures domain does not depend on analysis engines"
+type = "forbidden"
+source_modules = ["app.domain.futures"]
+forbidden_modules = ["app.domain.structure", "app.domain.technical"]
 
 [[tool.importlinter.contracts]]
 # Phase 2. The dependency runs structure -> technical and never back. Phase 1

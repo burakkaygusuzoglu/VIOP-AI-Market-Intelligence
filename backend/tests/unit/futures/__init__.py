@@ -1,0 +1,1 @@
+"""Futures contract domain tests."""

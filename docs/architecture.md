@@ -37,17 +37,24 @@ Declared as import-linter contracts in `backend/pyproject.toml` and executed by
    anthropic, httpx, requests, pydantic, pydantic-settings, or any outer layer.
 2. **Application depends only on domain** — no infrastructure, no API layer.
 3. **Adapters never import the API layer.**
-4. **Adapters never compute indicators or market structure** — `app.adapters`
-   may not import `app.domain.technical` or `app.domain.structure`. Indicator
-   mathematics and structural analysis are the numerical authority and stay
-   where they are tested and type-checked as such. *(Phase 1, widened in
-   Phase 2)*
+4. **Adapters never compute indicators, structure, risk or contract maths** —
+   `app.adapters` may not import `app.domain.technical`, `app.domain.structure`
+   or `app.domain.risk`. Every one of those is a numerical authority and stays
+   where it is tested and type-checked as such. *(Phase 1, widened in Phases 2
+   and 3)*
 5. **The technical engine does not depend on market structure** —
    `app.domain.technical` may not import `app.domain.structure`. The dependency
    runs one way, so Phase 1 indicators stay usable on their own and an
    indicator cannot reach for structure and create a circular definition.
    *(Phase 2)*
-6. **API routes and schemas never reach into adapters or SQLAlchemy.**
+6. **The risk engine depends only on contract facts, never on analysis** —
+   `app.domain.risk` may not import `app.domain.structure` or
+   `app.domain.technical`. A P&L or position size must not be coupled to an
+   analysis opinion, and it keeps the §45 volatility-warning deferral from
+   being undone by accident. *(Phase 3)*
+7. **The futures domain does not depend on analysis engines** — contract facts
+   are inputs to analysis, never outputs of it. *(Phase 3)*
+8. **API routes and schemas never reach into adapters or SQLAlchemy.**
 
 These are verified to actually fail when violated; the check is not decorative.
 
@@ -63,8 +70,8 @@ backend/app/
 │   ├── market/        Candle, series, Data Quality Engine   [Phase 0/1]
 │   ├── technical/     EMA, RSI, ATR, VWAP, MACD, ADX, BB    [Phase 1]
 │   ├── structure/     swings, BOS/CHOCH, S/R, regime        [Phase 2]
-│   ├── futures/       FuturesContract, basis, OI            (phase 3)
-│   ├── risk/          sizing, limits, margin, P&L           (phase 3)
+│   ├── futures/       FuturesContract, basis, OI            [Phase 3]
+│   ├── risk/          sizing, limits, margin, P&L           [Phase 3]
 │   ├── setups/        evidence fusion, quality, NO TRADE    (phase 4)
 │   ├── strategies/    strategy configs, router              (phase 4+)
 │   ├── trading/       paper positions, lifecycle            (phase 9)
@@ -78,6 +85,7 @@ backend/app/
 │   ├── persistence/   Base, Database, health probe          [Phase 0]
 │   ├── system/        SystemClock                           [Phase 0]
 │   ├── market_data/   CSV + deterministic synthetic         [Phase 1]
+│   ├── contract_metadata/  ManualContractMetadataProvider  [Phase 3]
 │   ├── ai/            Claude adapter                        (phase 6)
 │   └── news/                                                (phase 15)
 ├── api/
@@ -98,7 +106,7 @@ backend/app/
 | `ClockPort` | Defined + `SystemClock` | 0 |
 | `DatabaseHealthPort` | Defined + SQLAlchemy adapter | 0 |
 | `LiveMarketDataProvider` | Deferred | 13 |
-| `ContractMetadataProvider` | Deferred | 3 |
+| `ContractMetadataProvider` | Defined + manual adapter | 3 |
 | `ScreenshotAnalyzer` | Deferred | 6 |
 | `NewsProvider` | Deferred | 15 |
 | `OrderExecutionPort` | **Not scheduled** — execution disabled | — |
@@ -145,11 +153,44 @@ and the breach it invalidates is never rewritten.
 volume, and computes no indicator of its own. There is exactly one
 implementation of each formula in the codebase.
 
-**Classification may decline to classify.** *(Phase 2)* `StructureBias` has
+**Money is Decimal; analytics may be float.** *(Phase 3)* Prices, multipliers,
+tick sizes, margins, P&L, account balances and risk amounts are `Decimal`
+throughout `domain/futures/` and `domain/risk/`, enforced by a test that fails
+on any `float(` or `: float` in either package. Division runs in a pinned
+`decimal` context so a result cannot depend on ambient global state, and every
+zero denominator returns `None` rather than infinity or a misleading zero.
+
+**Mutable exchange facts arrive through a provider, wrapped in provenance.**
+*(Phase 3)* No multiplier, tick size, tick value, margin, expiry, settlement
+type or session is hard-coded anywhere; each is a `VerifiedValue` carrying its
+`VerificationStatus`, and only `VERIFIED_CURRENT_FACT` is released into money
+arithmetic. Two absences are kept distinct: `None` means never supplied, while
+a present value with `UNVERIFIED` status means supplied but not to be relied
+on. Tests scan the whole source tree for instrument codes and default-constant
+names. A `VERIFIED_CURRENT_FACT` must also carry the evidence it implies: a
+missing `source` is blocking, a missing `as_of` is a warning, and nothing
+anywhere decides a fact is *stale* — that would need an exchange revision
+schedule this project does not hold.
+
+**An instrument's metadata may only be paired with its own observations.**
+*(Phase 3)* `FuturesContract` and `FuturesQuote` each carry a symbol, and every
+contract-aware engine calls `require_matching_quote` or
+`require_same_instrument` before computing. A pairing of contract A's
+multiplier with contract B's price fails loudly rather than producing a
+confident wrong number. Matching is exact string equality after whitespace
+trimming — no symbol convention is assumed, not even case folding.
+
+**Classification may decline to classify.** *(Phase 2, extended in Phase 3)* `StructureBias` has
 `AMBIGUOUS` and `INSUFFICIENT`; `StructuralEventType` has `LEVEL_BREAK` for a
 break with no directional structure behind it; `MarketRegime` has `UNCERTAIN`
-and `CHAOTIC`. These are first-class outputs, not fallbacks — master spec
-section 2 forbids manufacturing confidence the evidence does not support.
+and `CHAOTIC`. Phase 3 adds `ContractState.UNKNOWN` for an expiry that cannot
+be decided without inventing a session hour, `SizingOutcome.UNDETERMINED` for a
+position whose margin or tick feasibility is unknown, `TickFeasibility` for
+levels that cannot be confirmed placeable, and `CostCompleteness` so a partial
+cost set yields a named upper bound instead of a `net` that silently values the
+missing components at zero. These are first-class outputs, not
+fallbacks — master spec section 2 forbids manufacturing confidence the evidence
+does not support.
 
 **Provenance.** `VerifiedValue[T]` binds a financial fact to how it was
 obtained. `require_authoritative()` refuses to release a development default,

@@ -112,7 +112,9 @@ backend/app/
 │   ├── ports/         market_data, ai, system               [Phase 0/1]
 │   ├── dto/           system                                [Phase 0]
 │   ├── use_cases/     get_system_health, load_market_data   [Phase 0/1]
-│   └── services/                                            (phase 4+)
+│   ├── presentation/  Turkish-first experience, two layers,
+│   │                  tooltips, Why Engine, checklist       [Phase 5]
+│   └── services/                                            (phase 7+)
 ├── adapters/
 │   ├── persistence/   Base, Database, health probe          [Phase 0]
 │   ├── system/        SystemClock                           [Phase 0]
@@ -263,6 +265,32 @@ the WAIT/NO-TRADE distinction before the phase that owns it could make it.
 §25 reasons with no authoritative data source — liquidity, event risk, news —
 are enumerated as a separate `DeferredNoTradeReason` enum that shares no member
 with the live one, so they are visible as known gaps and cannot fire.
+
+**Language lives in one layer, and never below it.** *(Phase 5)* Every Turkish
+word a user sees comes from one registry in
+`app/application/presentation/terms.py`. The financial engines stay
+language-free so the same calculation can be presented in any language without
+touching a formula, and a test scans `app/domain` for the registry's own
+strings to prove none has leaked downward. Presentation sits in the application
+layer because it is neither domain logic nor infrastructure: it reads finished
+domain results and shapes them for a surface.
+
+**Every sentence is traceable, and every score is explained.** *(Phase 5)* A
+beginner `Statement` carries the evidence items it was built from and refuses
+to be constructed without them — only a data gap may be stated with no source,
+because there the absence *is* the fact. §92's rule that no score may appear
+unexplained is enforced the same way: an `Explanation` that claims to be
+available with no reasons raises, and the reasons are read from the score's own
+component breakdown rather than written beside it. Beginner and Pro are two
+renderings of one `Reason`, so they cannot disagree.
+
+**Missing is never a pass.** *(Phase 5)* The §49 checklist reports an
+unevaluated check as WARNING or FAIL, never PASS: a missing stop is not a valid
+stop, a missing risk figure is not safe risk, and liquidity — which this
+repository has no data for — can only ever say it was not evaluated. Which
+failures are critical is a stated, configurable policy rather than a hidden
+constant, and a critical failure produces §49's named
+`TRADE_QUALITY_INSUFFICIENT`.
 
 **Classification may decline to classify.** *(Phase 2, extended in Phases 3 and 4)* `StructureBias` has
 `AMBIGUOUS` and `INSUFFICIENT`; `StructuralEventType` has `LEVEL_BREAK` for a

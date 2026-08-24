@@ -24,6 +24,22 @@ master specification wins.
                  └──────────────────────────────────────────┘
 ```
 
+Inside `app/domain` the dependency order is equally strict. Analysis sits above
+the engines it reads, risk stays account-side and analysis-blind, and exactly
+one package is allowed to join them:
+
+```
+  market ─▶ technical ─▶ structure ─┐
+                                    ├─▶ analysis ─┐
+                        futures ────┘             ├─▶ suitability
+                        futures ─▶ risk ──────────┘      (NO TRADE veto)
+```
+
+`analysis` may never import `risk`: §43 separates a technical score, which must
+read identically for every user, from trade suitability, which cannot be
+answered without knowing the account. `suitability` consumes both as finished
+typed results and reimplements neither.
+
 `app/main.py` and `app/api/dependencies.py` form the **composition root** —
 the only place a concrete adapter is attached to a port. Route modules never
 see an adapter, a session or an engine.
@@ -37,11 +53,11 @@ Declared as import-linter contracts in `backend/pyproject.toml` and executed by
    anthropic, httpx, requests, pydantic, pydantic-settings, or any outer layer.
 2. **Application depends only on domain** — no infrastructure, no API layer.
 3. **Adapters never import the API layer.**
-4. **Adapters never compute indicators, structure, risk or contract maths** —
-   `app.adapters` may not import `app.domain.technical`, `app.domain.structure`
-   or `app.domain.risk`. Every one of those is a numerical authority and stays
-   where it is tested and type-checked as such. *(Phase 1, widened in Phases 2
-   and 3)*
+4. **Adapters never compute indicators, structure, risk, contract maths or
+   analysis** — `app.adapters` may not import `app.domain.technical`,
+   `app.domain.structure`, `app.domain.risk` or `app.domain.analysis`. Every
+   one of those is a numerical or analytical authority and stays where it is
+   tested and type-checked as such. *(Phase 1, widened in Phases 2, 3 and 4)*
 5. **The technical engine does not depend on market structure** —
    `app.domain.technical` may not import `app.domain.structure`. The dependency
    runs one way, so Phase 1 indicators stay usable on their own and an
@@ -54,7 +70,21 @@ Declared as import-linter contracts in `backend/pyproject.toml` and executed by
    being undone by accident. *(Phase 3)*
 7. **The futures domain does not depend on analysis engines** — contract facts
    are inputs to analysis, never outputs of it. *(Phase 3)*
-8. **API routes and schemas never reach into adapters or SQLAlchemy.**
+8. **Nothing beneath the analysis layer depends on it** — `app.domain.analysis`
+   sits at the top of the domain: it consumes the technical, structural and
+   futures engines and none of them may import it back. The reverse direction
+   would let an indicator depend on a multi-timeframe opinion, and would let
+   evidence quietly become an input to itself. *(Phase 4)*
+9. **The analysis layer never depends on the risk engine** — `app.domain.
+   analysis` may not import `app.domain.risk`. §43 separates *setup quality*
+   from *trade suitability*: a technical score must read identically for every
+   user, and it cannot if an account balance can reach it. *(Phase 4)*
+10. **Nothing beneath the suitability layer depends on it** —
+    `app.domain.suitability` is the single place allowed to depend on both
+    analysis and risk, and it sits above both so neither has to know about the
+    other. A veto is the end of the chain, never an input to what it vetoes.
+    *(Phase 4)*
+11. **API routes and schemas never reach into adapters or SQLAlchemy.**
 
 These are verified to actually fail when violated; the check is not decorative.
 
@@ -72,8 +102,10 @@ backend/app/
 │   ├── structure/     swings, BOS/CHOCH, S/R, regime        [Phase 2]
 │   ├── futures/       FuturesContract, basis, OI            [Phase 3]
 │   ├── risk/          sizing, limits, margin, P&L           [Phase 3]
-│   ├── setups/        evidence fusion, quality, NO TRADE    (phase 4)
-│   ├── strategies/    strategy configs, router              (phase 4+)
+│   ├── analysis/      MTF roles, evidence, fusion, quality,
+│   │                  entry quality, scenarios              [Phase 4]
+│   ├── suitability/   NO TRADE veto (analysis + risk)       [Phase 4]
+│   ├── strategies/    strategy configs, router              (phase 5+)
 │   ├── trading/       paper positions, lifecycle            (phase 9)
 │   └── backtest/      historical evaluation                 (phase 12)
 ├── application/
@@ -180,7 +212,59 @@ multiplier with contract B's price fails loudly rather than producing a
 confident wrong number. Matching is exact string equality after whitespace
 trimming — no symbol convention is assumed, not even case folding.
 
-**Classification may decline to classify.** *(Phase 2, extended in Phase 3)* `StructureBias` has
+**Timeframes have roles and are never averaged.** *(Phase 4)* 1D reads the
+regime, 1H the directional bias, 15M the setup, 5M the timing, and §10 forbids
+treating them equally. A view whose timeframe does not match its role is
+refused rather than quietly reordered, and a role with no view stays absent all
+the way through — a gap in the hierarchy is never filled with a neutral
+reading. A lower timeframe moving against higher ones that agree is reported as
+a *pullback*, not a conflict; the exemption is revoked only by a strong
+opposing regime, or by a change of character **and** a confirmed breakout
+against the consensus.
+
+**Repetition is not confirmation.** *(Phase 4)* The Evidence Fusion Engine
+collapses each category on each timeframe into one `EvidenceGroup`, so twenty
+records of one divergence argue once. Every score reads groups rather than
+items, and each quality component is capped at its own weight, which is also
+how correlated components are kept from compounding: the regime is derived
+partly from the EMA stack and the structure bias, so it is weighted *below*
+both rather than being allowed to re-award what they already counted.
+
+**A score is a heuristic, never a probability.** *(Phase 4)* Setup Quality and
+Entry Quality are 0-100 and labelled `HEURISTIC`; §19 forbids calling an
+uncalibrated analysis score a probability, a win rate or an edge, and a test
+forbids the field names that would invite it. Bull and bear qualities are
+computed independently and do not sum to 100 — both can be poor at once, which
+is what a directionless market looks like. Components with no evidence are
+excluded from numerator *and* denominator, with the denominator actually used
+published on every result, and a `DATA_AVAILABILITY` component keeps missing
+data from being free.
+
+**Agreement and completeness are different facts.** *(Phase 4)* Alignment is a
+*relation* between timeframe readings, so it needs at least two of them: with
+fewer, `TIMEFRAME_ALIGNMENT` is `UNAVAILABLE` and says why, because scoring one
+timeframe as partially aligned would measure a relation that does not exist. A
+missing timeframe is neither agreement nor disagreement. How much of the
+hierarchy exists is scored separately by `TIMEFRAME_COVERAGE`, weighted by role
+so a missing 1D costs more than a missing 5M — which is also what stops
+excluding alignment from the denominator from quietly *raising* an incomplete
+analysis's score.
+
+**Phase 4 stops before the decision.** *(Phase 4)* Scenarios reach
+`WAITING_FOR_CONFIRMATION` and the NO TRADE engine returns a veto with reason
+codes, but nothing produces LONG, SHORT or WAIT. That synthesis weighs analysis
+against account risk and belongs to the later phase that owns it. What Phase 4
+*does* preserve is the information that decision will need: every finding
+carries a `FindingSeverity` of **BLOCKING** (waiting cannot fix it — zero risk
+allowance, corrupt data, a timeframe conflict), **PENDING** (a future candle
+genuinely could — a missing entry confirmation) or **CAUTION** (disclosed, and
+neither). A boolean would have collapsed the first two together and destroyed
+the WAIT/NO-TRADE distinction before the phase that owns it could make it.
+§25 reasons with no authoritative data source — liquidity, event risk, news —
+are enumerated as a separate `DeferredNoTradeReason` enum that shares no member
+with the live one, so they are visible as known gaps and cannot fire.
+
+**Classification may decline to classify.** *(Phase 2, extended in Phases 3 and 4)* `StructureBias` has
 `AMBIGUOUS` and `INSUFFICIENT`; `StructuralEventType` has `LEVEL_BREAK` for a
 break with no directional structure behind it; `MarketRegime` has `UNCERTAIN`
 and `CHAOTIC`. Phase 3 adds `ContractState.UNKNOWN` for an expiry that cannot
@@ -188,9 +272,14 @@ be decided without inventing a session hour, `SizingOutcome.UNDETERMINED` for a
 position whose margin or tick feasibility is unknown, `TickFeasibility` for
 levels that cannot be confirmed placeable, and `CostCompleteness` so a partial
 cost set yields a named upper bound instead of a `net` that silently values the
-missing components at zero. These are first-class outputs, not
-fallbacks — master spec section 2 forbids manufacturing confidence the evidence
-does not support.
+missing components at zero. Phase 4 adds `EvidenceDirection.UNAVAILABLE` kept
+permanently apart from `NEUTRAL`, `ComponentAvailability.UNAVAILABLE` for a
+score component with nothing to measure, `ScenarioState.UNAVAILABLE` for a case
+that cannot be judged, `RequirementStatus.UNKNOWN` for a condition nobody could
+evaluate, and a three-state `no_trade` of true / false / **None**, because "we
+could not tell" must never collapse into "go ahead". These are first-class
+outputs, not fallbacks — master spec section 2 forbids manufacturing confidence
+the evidence does not support.
 
 **Provenance.** `VerifiedValue[T]` binds a financial fact to how it was
 obtained. `require_authoritative()` refuses to release a development default,

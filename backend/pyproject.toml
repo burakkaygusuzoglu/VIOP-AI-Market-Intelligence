@@ -154,6 +154,7 @@ forbidden_modules = [
     "app.domain.technical",
     "app.domain.structure",
     "app.domain.risk",
+    "app.domain.analysis",
 ]
 
 [[tool.importlinter.contracts]]
@@ -166,7 +167,56 @@ forbidden_modules = [
 name = "The risk engine depends only on contract facts, never on analysis"
 type = "forbidden"
 source_modules = ["app.domain.risk"]
-forbidden_modules = ["app.domain.structure", "app.domain.technical"]
+forbidden_modules = ["app.domain.structure", "app.domain.technical", "app.domain.analysis"]
+
+[[tool.importlinter.contracts]]
+# Phase 4A. Analysis is the top of the domain: it consumes the technical,
+# structural and futures engines and nothing consumes it back. The reverse
+# direction would let an indicator or a swing depend on a multi-timeframe
+# opinion, which is the circular definition every earlier contract exists to
+# prevent - and it would let evidence quietly become an input to itself.
+name = "Nothing beneath the analysis layer depends on it"
+type = "forbidden"
+source_modules = [
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.futures",
+    "app.domain.market",
+    "app.domain.common",
+]
+forbidden_modules = ["app.domain.analysis"]
+
+[[tool.importlinter.contracts]]
+# Phase 4A. Evidence describes the market; risk describes an account. Keeping
+# them apart stops a position size from leaking into an analytical reading and
+# stops evidence from acquiring a money dimension it has no authority over. It
+# also mechanically preserves the Phase 4B boundary: converting evidence into a
+# trade needs both, and that conversion does not exist yet.
+name = "The analysis layer never depends on the risk engine"
+type = "forbidden"
+source_modules = ["app.domain.analysis"]
+forbidden_modules = ["app.domain.risk"]
+
+[[tool.importlinter.contracts]]
+# Phase 4B. Master spec section 43 separates setup quality from trade
+# suitability. `app.domain.suitability` is the single place allowed to depend
+# on both analysis and risk, and it sits above both so that neither has to know
+# about the other: a technical score must read identically for every user, and
+# it cannot if an account balance can reach it. Nothing may depend on
+# suitability in return - a veto is the end of the chain, not an input to the
+# things it vetoes.
+name = "Nothing beneath the suitability layer depends on it"
+type = "forbidden"
+source_modules = [
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.futures",
+    "app.domain.market",
+    "app.domain.common",
+    "app.domain.risk",
+    "app.domain.analysis",
+]
+forbidden_modules = ["app.domain.suitability"]
 
 [[tool.importlinter.contracts]]
 # Phase 3. Futures contract facts are inputs to analysis, never outputs of it.

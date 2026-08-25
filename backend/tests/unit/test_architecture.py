@@ -7,6 +7,8 @@ build rather than surviving as a code-review remark.
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -79,3 +81,41 @@ def test_the_technical_engine_depends_on_nothing_outside_the_domain() -> None:
         source = path.read_text(encoding="utf-8")
         for needle in forbidden:
             assert needle not in source, f"{path} must not depend on {needle}"
+
+
+# ----------------------------------------------------------------------
+# The application must actually be importable, not merely well layered
+# ----------------------------------------------------------------------
+
+ENTRY_POINTS = (
+    "app.main",
+    "app.api.routes.screenshots",
+    "app.application.ports.screenshot",
+    "app.application.vision.analysis",
+    "app.application.vision.intake",
+    "app.adapters.vision.claude_analyzer",
+)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("module", ENTRY_POINTS)
+def test_each_entry_point_imports_first_in_a_clean_interpreter(module: str) -> None:
+    """A circular import is invisible once something else has warmed the package.
+
+    import-linter reports the *direction* of a dependency and is satisfied by a
+    cycle that lies inside one layer; a normal test run hides it whenever some
+    earlier test imports the modules in a lucky order. Phase 6 shipped exactly
+    that: `uvicorn app.main:app` raised ImportError on a partially initialised
+    port while all six gates were green. Each module is therefore imported as
+    the very first thing a fresh interpreter does.
+    """
+    result = subprocess.run(  # noqa: S603 - fixed argv, no shell, no user input
+        [sys.executable, "-c", f"import {module}"],
+        capture_output=True,
+        text=True,
+        cwd=BACKEND_ROOT,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"{module} cannot be imported on its own:\n{result.stderr.strip()}"
+    )

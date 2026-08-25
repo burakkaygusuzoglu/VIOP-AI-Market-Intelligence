@@ -19,6 +19,21 @@ dependencies = [
     "sqlalchemy>=2.0",          # section 94: ORM, persistence adapter only
     "alembic>=1.13",            # section 94: schema migrations
     "psycopg[binary]>=3.1",     # section 94: PostgreSQL driver
+    # ---- Phase 6 (vision). Each of these has a stated reason; see below. ----
+    # Real bounded image decode before any byte leaves the process. Required by
+    # the Phase 6A human review, which ruled out extending the hand-written
+    # header parser into a home-grown decoder. Used in exactly one module,
+    # app/application/vision/decode.py, and its decompression-bomb guard is
+    # configured from policy rather than suppressed.
+    "pillow>=11.0",
+    # section 68/69: the Claude Vision provider. Confined to
+    # app/adapters/vision/, enforced by test and by the SDK never appearing in
+    # a port, a use case or the domain.
+    "anthropic>=0.40",
+    # Required by FastAPI to parse multipart uploads. Without it the screenshot
+    # endpoint cannot accept a file at all - this is a framework requirement,
+    # not a convenience.
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -234,6 +249,28 @@ name = "The technical engine does not depend on market structure"
 type = "forbidden"
 source_modules = ["app.domain.technical"]
 forbidden_modules = ["app.domain.structure"]
+
+[[tool.importlinter.contracts]]
+# Phase 6A. Master spec section 1 and section 65: Claude Vision is
+# supplementary and must never become the source of numeric truth. A
+# screenshot observation is an *input to precedence*, never an input to a
+# formula, so no calculation engine may import the vision package at all.
+# This is section 16 of the Phase 6A brief made mechanical: an EMA, an RSI, a
+# P&L or a position size cannot be derived from something a model read off a
+# picture, because the module that would do it cannot see the module that
+# holds it.
+name = "No calculation engine depends on screenshot vision"
+type = "forbidden"
+source_modules = [
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.futures",
+    "app.domain.risk",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.market",
+]
+forbidden_modules = ["app.domain.vision"]
 
 [[tool.importlinter.contracts]]
 name = "API route and schema modules never reach into adapters directly"

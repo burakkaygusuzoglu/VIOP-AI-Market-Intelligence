@@ -58,8 +58,44 @@ class Settings(BaseSettings):
     db_connect_timeout_seconds: int = 5
 
     # ---------- Anthropic ----------
-    # Unused in Phase 0. No AI adapter exists yet.
+    # Wired in Phase 6: the Claude Vision adapter reads these. The key is a
+    # SecretStr so it is scrubbed from logs by `secrets` below.
     anthropic_api_key: SecretStr | None = Field(default=None)
+
+    vision_model: str = Field(default="")
+    """Which model performs screenshot extraction.
+
+    **Deliberately empty by default.** Master spec section 118 forbids
+    inventing a fact, and a model identifier is a fact about a provider's
+    catalogue that changes without notice. An unset value makes the adapter
+    refuse to build with a typed CONFIGURATION failure, which is the honest
+    outcome - silently defaulting to some model id would mean sending a user's
+    screenshot to whatever that string happened to name.
+    """
+
+    vision_timeout_seconds: float = 60.0
+    """Per-request timeout handed to the SDK client."""
+
+    vision_max_retries: int = 2
+    """Bounded retries, performed by the SDK client rather than by a second
+    loop of our own - two layers would multiply into a much longer worst case
+    than either intends."""
+
+    vision_max_tokens: int = 2048
+    """Response budget for one extraction. Not a business input: nothing in
+    the analysis depends on token counts."""
+
+    @property
+    def vision_is_configured(self) -> bool:
+        """Whether a vision call could be attempted at all.
+
+        Checked before building an adapter so a missing key or model produces
+        a typed configuration error rather than a provider round trip.
+        """
+        key = (
+            self.anthropic_api_key.get_secret_value() if self.anthropic_api_key is not None else ""
+        )
+        return bool(key.strip()) and bool(self.vision_model.strip())
 
     @field_validator("cors_origins", mode="before")
     @classmethod

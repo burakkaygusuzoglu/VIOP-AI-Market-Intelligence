@@ -36,6 +36,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum, unique
 
+from app.domain.common.identity import canonical_symbol, same_instrument
 from app.domain.common.verification import VerifiedValue
 
 
@@ -292,10 +293,14 @@ def require_matching_quote(contract: FuturesContract, quote: FuturesQuote, opera
     extraction, no case folding and no normalisation beyond whitespace, because
     every one of those would be an exchange convention this project has not
     verified. Two symbols match when they are the same string.
+
+    The rule itself now lives in `domain.common.identity` so that Phase 6's
+    screenshot symbol checks use this one rather than a second, looser one.
+    The behaviour here is unchanged.
     """
-    expected = contract.symbol.strip()
-    actual = quote.symbol.strip()
-    if expected != actual:
+    expected = canonical_symbol(contract.symbol)
+    actual = canonical_symbol(quote.symbol)
+    if not same_instrument(expected, actual):
         raise QuoteMismatchError(expected, actual, operation)
 
 
@@ -305,7 +310,7 @@ def require_same_instrument(first: FuturesQuote, second: FuturesQuote, operation
     Comparing one contract's open interest against another's produces a
     perfectly plausible reading of a change that never happened.
     """
-    expected = first.symbol.strip()
-    actual = second.symbol.strip()
-    if expected != actual:
+    expected = canonical_symbol(first.symbol)
+    actual = canonical_symbol(second.symbol)
+    if not same_instrument(expected, actual):
         raise QuoteMismatchError(expected, actual, operation)

@@ -11,6 +11,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
+from app.application.ports.system import ClockPort
 from app.application.use_cases.get_liveness import GetLiveness
 from app.application.use_cases.get_system_health import GetSystemHealth
 
@@ -35,3 +36,19 @@ def get_liveness_use_case(request: Request) -> GetLiveness:
 
 
 LivenessUseCase = Annotated[GetLiveness, Depends(get_liveness_use_case)]
+
+
+def get_clock(request: Request) -> ClockPort:
+    """Return the clock assembled at startup.
+
+    Routes take time from here rather than reading a wall clock, so replay and
+    backtest can supply their own and no request can observe a timestamp the
+    run was not meant to have.
+    """
+    clock = request.app.state.clock
+    if not isinstance(clock, ClockPort):  # pragma: no cover - wiring guard
+        raise RuntimeError("Application state is missing the clock")
+    return clock
+
+
+Clock = Annotated[ClockPort, Depends(get_clock)]

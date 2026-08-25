@@ -125,6 +125,17 @@ def configure_logging(
         logger.handlers.clear()
         logger.propagate = True
 
+    # Phase 6: the imaging library must never narrate an uploaded image.
+    #
+    # Pillow logs at DEBUG while parsing - chunk names, offsets, lengths, and
+    # for some formats the metadata values themselves. None of that belongs in
+    # a log that may hold a user's chart, and the Phase 6B review is explicit
+    # that image content does not get logged. Raising the root level to DEBUG
+    # to chase an unrelated bug must not quietly turn that guarantee off, so
+    # the floor is set here rather than left to whatever level is configured.
+    for name in ("PIL", "PIL.Image", "PIL.PngImagePlugin", "PIL.TiffImagePlugin"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
 
 class ContextLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """Merges fixed context with per-call ``extra`` fields.

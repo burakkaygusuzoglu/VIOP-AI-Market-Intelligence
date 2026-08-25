@@ -13,6 +13,7 @@ from app.core.logging import (
     REDACTED,
     ConsoleLogFormatter,
     JsonLogFormatter,
+    configure_logging,
     get_logger,
     redact,
 )
@@ -118,3 +119,61 @@ def test_call_site_extras_survive_the_logger_adapter() -> None:
     assert payload["component"] == "access"
     assert payload["status_code"] == 503
     assert payload["path"] == "/api/health"
+
+
+@pytest.mark.unit
+def test_the_imaging_library_is_never_allowed_to_narrate_an_image() -> None:
+    """Phase 6: image content must not reach a log, at any level.
+
+    Pillow logs while parsing - chunk names, offsets, lengths, and for some
+    formats the metadata values themselves. Turning the root logger up to
+    DEBUG to chase an unrelated bug must not silently start writing a user's
+    chart into the log, so the floor is part of the logging configuration
+    rather than a property of the level that happens to be set.
+    """
+    root = logging.getLogger()
+    previous = root.level
+    try:
+        configure_logging(level="DEBUG", log_format="json")
+        root.setLevel(logging.DEBUG)
+        for name in ("PIL", "PIL.Image", "PIL.PngImagePlugin", "PIL.TiffImagePlugin"):
+            logger = logging.getLogger(name)
+            assert logger.getEffectiveLevel() >= logging.WARNING, (
+                f"{name} would emit image internals at DEBUG"
+            )
+    finally:
+        root.setLevel(previous)
+
+
+@pytest.mark.unit
+def test_no_image_chunk_chatter_survives_a_real_decode_at_debug_level() -> None:
+    """The floor above, proven against an actual decode rather than asserted."""
+    import io
+
+    from PIL import Image
+    from PIL.PngImagePlugin import PngInfo
+
+    from app.application.vision.decode import verify_and_normalise
+
+    marker = "MARKER-IMAGE-CONTENT-9f3a"
+    metadata = PngInfo()
+    metadata.add_text("Comment", marker)
+    buffer = io.BytesIO()
+    Image.new("RGB", (120, 90), "white").save(buffer, format="PNG", pnginfo=metadata)
+
+    sink = io.StringIO()
+    handler = logging.StreamHandler(sink)
+    root = logging.getLogger()
+    previous = root.level
+    configure_logging(level="DEBUG", log_format="json")
+    root.addHandler(handler)
+    root.setLevel(logging.DEBUG)
+    try:
+        verify_and_normalise(buffer.getvalue())
+    finally:
+        root.removeHandler(handler)
+        root.setLevel(previous)
+
+    written = sink.getvalue()
+    assert marker not in written, "image metadata reached the log"
+    assert "STREAM" not in written, "Pillow chunk chatter reached the log"

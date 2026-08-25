@@ -17,8 +17,10 @@ from app.adapters.persistence.health import SqlAlchemyDatabaseHealth
 from app.adapters.system.clock import SystemClock
 from app.api.middleware import RequestContextMiddleware
 from app.api.routes.health import router as health_router
+from app.api.routes.screenshots import router as screenshots_router
 from app.application.use_cases.get_liveness import GetLiveness
 from app.application.use_cases.get_system_health import GetSystemHealth
+from app.application.vision.decode import configure_image_safety
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, get_logger
 
@@ -37,6 +39,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         log_format=settings.log_format,
         secrets=settings.secret_values(),
     )
+    # Pillow's process-wide decompression-bomb backstop, set once here rather
+    # than per request. Request-scoped mutation of a process global was
+    # measured leaking across threads, so per-image limits are enforced by
+    # `DecodePolicy` arithmetic instead - this only stops Pillow's own guard
+    # being looser than anything this application would accept.
+    configure_image_safety()
     logger = get_logger("app.startup")
 
     @asynccontextmanager
@@ -47,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         application.state.database = database
         clock = SystemClock()
+        application.state.clock = clock
         application.state.get_liveness = GetLiveness(
             clock=clock,
             app_env=settings.app_env,
@@ -88,6 +97,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     application.include_router(health_router, prefix=settings.api_prefix)
+    application.include_router(screenshots_router, prefix=settings.api_prefix)
     return application
 
 

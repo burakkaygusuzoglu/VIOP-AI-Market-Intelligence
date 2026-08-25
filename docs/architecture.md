@@ -84,9 +84,33 @@ Declared as import-linter contracts in `backend/pyproject.toml` and executed by
     analysis and risk, and it sits above both so neither has to know about the
     other. A veto is the end of the chain, never an input to what it vetoes.
     *(Phase 4)*
-11. **API routes and schemas never reach into adapters or SQLAlchemy.**
+11. **No calculation engine depends on screenshot vision** — none of
+    `technical`, `structure`, `futures`, `risk`, `analysis`, `suitability` or
+    `market` may import `app.domain.vision`. §1 and §65 make Claude Vision
+    supplementary: a screenshot observation is an input to *precedence*, never
+    to a formula. An EMA, an RSI, a P&L or a position size cannot be derived
+    from something a model read off a picture, because the module that would do
+    it cannot see the module that holds it. *(Phase 6)*
+12. **API routes and schemas never reach into adapters or SQLAlchemy.**
 
 These are verified to actually fail when violated; the check is not decorative.
+
+### Import direction is necessary but not sufficient
+
+Contract 11 and its ten siblings describe the *direction* of a dependency. They
+are satisfied by a cycle that lives inside a single layer, and Phase 6 shipped
+one: `app.application.ports.screenshot` imported a type from
+`app.application.vision.intake`, whose package `__init__` re-exported
+`app.application.vision.analysis`, which imported the port back. All six gates
+were green and `uvicorn app.main:app` still raised `ImportError` on a partially
+initialised module. A normal test run hid it, because any test that imported the
+adapter first warmed the package in a lucky order.
+
+`tests/unit/test_architecture.py` therefore also imports each entry point as the
+very first statement of a **fresh interpreter**. That test was confirmed to fail
+against the cycle before the fix was kept. The `app.application.vision` package
+now carries no re-exports at all: submodules are imported directly, which is
+what every caller already did.
 
 ## Target backend tree
 
@@ -105,26 +129,31 @@ backend/app/
 │   ├── analysis/      MTF roles, evidence, fusion, quality,
 │   │                  entry quality, scenarios              [Phase 4]
 │   ├── suitability/   NO TRADE veto (analysis + risk)       [Phase 4]
+│   ├── vision/        slots, assets, screenshot quality,
+│   │                  extraction, precedence, corrections   [Phase 6]
 │   ├── strategies/    strategy configs, router              (phase 5+)
 │   ├── trading/       paper positions, lifecycle            (phase 9)
 │   └── backtest/      historical evaluation                 (phase 12)
 ├── application/
-│   ├── ports/         market_data, ai, system               [Phase 0/1]
+│   ├── ports/         market_data, ai, system, screenshot   [Phase 0/1/6]
 │   ├── dto/           system                                [Phase 0]
 │   ├── use_cases/     get_system_health, load_market_data   [Phase 0/1]
 │   ├── presentation/  Turkish-first experience, two layers,
 │   │                  tooltips, Why Engine, checklist       [Phase 5]
+│   ├── vision/        intake, images, decode, prompt,
+│   │                  schemas, errors, analysis             [Phase 6]
 │   └── services/                                            (phase 7+)
 ├── adapters/
 │   ├── persistence/   Base, Database, health probe          [Phase 0]
 │   ├── system/        SystemClock                           [Phase 0]
 │   ├── market_data/   CSV + deterministic synthetic         [Phase 1]
 │   ├── contract_metadata/  ManualContractMetadataProvider  [Phase 3]
-│   ├── ai/            Claude adapter                        (phase 6)
+│   ├── vision/        transport + Claude screenshot analyzer [Phase 6]
+│   ├── ai/            Claude adapter                        (phase 7)
 │   └── news/                                                (phase 15)
 ├── api/
-│   ├── routes/        health                                [Phase 0]
-│   ├── schemas/       health                                [Phase 0]
+│   ├── routes/        health, screenshots                   [Phase 0/6]
+│   ├── schemas/       health, screenshots                   [Phase 0/6]
 │   ├── dependencies.py, middleware.py                       [Phase 0]
 │   └── websocket/                                           (phase 13)
 └── core/              config, logging, context              [Phase 0]
@@ -141,12 +170,148 @@ backend/app/
 | `DatabaseHealthPort` | Defined + SQLAlchemy adapter | 0 |
 | `LiveMarketDataProvider` | Deferred | 13 |
 | `ContractMetadataProvider` | Defined + manual adapter | 3 |
-| `ScreenshotAnalyzer` | Deferred | 6 |
+| `ScreenshotAnalyzer` | Defined + `ClaudeScreenshotAnalyzer` | 6 |
 | `NewsProvider` | Deferred | 15 |
 | `OrderExecutionPort` | **Not scheduled** — execution disabled | — |
 
 A port is defined only when its types can be expressed honestly. Typing a port
 with `Any` to create it early is worse than not having it.
+
+## The screenshot pipeline (Phase 6)
+
+Untrusted bytes cross four boundaries before a single one leaves the process,
+and the provider sits behind all of them:
+
+```
+  upload
+    │  size bound            bytes counted before anything parses them
+    ▼
+  header preflight           own parser: PNG IHDR / JPEG SOF / WEBP VP8·L·X
+    │                        - extension and Content-Type are never trusted
+    ▼
+  dimension / pixel policy   refuses a bomb declared in the header
+    ▼
+  real bounded decode        Pillow: verify() then load(), single frame only
+    │                        - policy limits checked against decoder-reported
+    │                          dimensions BEFORE verify()/load()
+    ▼                        - no request mutates any global
+  normalisation              re-encoded to a fresh static PNG:
+    │                        strips metadata, keeps alpha and every pixel
+    ▼
+  ScreenshotAnalyzer  ──▶  Claude Vision (the ONLY step that leaves the host)
+```
+
+### Image limits are per-call, not process-global
+
+The decode layer originally set `Image.MAX_IMAGE_PIXELS` from the policy for the
+duration of each call and restored it in a `finally`, and promoted Pillow's
+decompression-bomb warning with a per-call `warnings.catch_warnings()`. Both are
+process-global mutable state. Measured under threads, a concurrent observer saw
+**two different pixel ceilings** while decodes were in flight, and saw the
+promoted warning filter while doing no decoding of its own — so the limit in
+force during one decode was whatever another request had most recently written.
+
+A bomb guard whose value depends on which other requests happen to be running is
+not a guard. Two independent layers replaced it, neither request-scoped:
+
+1. **`DecodePolicy` is the primary boundary**, enforced by the decode module's
+   own arithmetic against the dimensions the decoder reports, before `verify()`
+   or `load()` is called. `Image.open` reads a header and allocates no pixel
+   buffer, so a bomb is refused before it can expand. Pure, deterministic, and
+   identical under any amount of concurrency.
+2. **`configure_image_safety()` sets a fixed process ceiling once**, at
+   application startup, and never again. `DecodePolicy` refuses a `max_pixels`
+   above it at construction, so policy and backstop cannot contradict each
+   other.
+
+Pillow's protection is configured, never suppressed. A pixel bomb is refused
+whether or not startup configuration has run, because layer 1 does not depend
+on layer 2.
+
+A failure at any layer raises before the transport is constructed, so the
+provider cannot be reached by a payload that did not pass. This is asserted
+mechanically rather than by inspection: the API tests drive rejected uploads
+through the real route and then assert the fake transport recorded **no**
+request at all.
+
+The two questions the vision slice must never conflate have separate homes:
+
+```
+  OBSERVED SCREEN VALUE          CALCULATION AUTHORITY
+  review.observed_value(f)       effective_value(review, f, ...)
+  always the picture's reading   precedence.resolve over every claim
+```
+
+A user confirming "the screenshot says RSI 63.2" raises that *screenshot's*
+authority to `USER_CONFIRMED` — which still loses to a validated structured
+61.27. The hierarchy is Phase 0's `DataSourcePriority`, unchanged, and the
+outcome falls out of the ranking rather than being special-cased anywhere.
+
+Numeric claims are compared as exact `Decimal`, so 61.27, 61.270 and "61.27"
+are one observation rather than three conflicting ones — with **no tolerance**,
+and with each source's original text preserved for audit. Precedence itself was
+not touched by that change.
+
+That guarantee starts at the JSON parser, not at the comparison. A model may
+answer `{"value": 61.27}` rather than `{"value": "61.27"}`; parsed the default
+way that becomes a binary float, and `Decimal(61.27)` is
+`61.27000000000000312638803734444081783294677734375`, which would conflict with
+a structured `Decimal("61.27")` for no reason but representation. The vision
+response is therefore parsed with `parse_float=Decimal`, which hands the JSON
+module's own **lexical token** to `Decimal`, and the schema refuses a bare
+`float` outright so that path cannot be bypassed.
+
+**Instrument identity has exactly one rule**, in `domain.common.identity`: exact
+match after stripping whitespace, no case folding, no root extraction, no month
+codes — every one of those is an exchange convention this project has not
+verified. Phase 3's `require_matching_quote` and Phase 6's `SymbolAgreement`
+both call it. Vision briefly had a second, looser rule that case-folded before
+comparing, which put the weaker of two identity policies exactly where a user is
+told whether the chart shows the instrument they meant.
+
+Time enters through `ClockPort`, never through ambient `datetime.now()`:
+`staleness_of`, `record_correction` and the corrections endpoint all take the
+port, so a replay stamps the instants replay actually had.
+
+### The correction workflow
+
+`POST /screenshots/corrections` → `application.vision.correction_workflow`.
+CONFIRM, CORRECT and REJECT, returning both answers separately —
+`observed_screen_value` (what the picture shows) and `authoritative_value` (what
+an engine may use) — plus `user_input_was_overridden`, so a user whose
+correction loses to structured market data is told so rather than left to infer
+it.
+
+It is **stateless**: Phase 6 stores no screenshot, so the caller submits the
+observation it is correcting. That value is named `replayed_observation` and
+reported back with `observed_value_origin: CLIENT_REPLAYED_UNVERIFIED`, because
+nothing server-side can confirm it came from a real Vision result. A persistence
+phase should load it by `screenshot_id`, drop the field from the request, and
+set the origin to `SERVER_VISION_RESULT`.
+
+### External input may supply a value; it may never choose that value's rank
+
+The public schema carries user-correction fields and **nothing else** — no
+source, no priority, no verification status, no structured figure. Trusted
+context travels in `ServerAnalysisContext`, a type no request body can produce,
+and that is the only path in this codebase to `STRUCTURED_MARKET_DATA` on a
+correction.
+
+The distinction is not pedantic. An earlier version of this endpoint exposed a
+`structured_value` field and stamped whatever arrived in it as validated market
+data, so `{"structured_value": "999"}` came back as
+`authoritative_source: STRUCTURED_MARKET_DATA`. `extra="forbid"` had blocked the
+*label* while the value that receives the label walked through — the same
+escalation wearing a different hat. **Self-assigning the label and
+self-assigning the value that gets the label are the same escalation**, and only
+the second one looks harmless.
+
+Everything a client sends enters at the weakest rank the project has. The
+replayed observation is not even allowed to claim it was "directly visible",
+because `DIRECTLY_VISIBLE` and `VISUALLY_INFERRED` map to different precedence
+ranks — letting the request pick would be letting it choose its own authority
+one notch at a time. A user's own correction earns `USER_CONFIRMED`: above
+anything a screenshot or model produced, and never validated market data.
 
 ## Cross-cutting decisions
 

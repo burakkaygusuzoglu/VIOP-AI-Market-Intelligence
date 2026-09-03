@@ -31,6 +31,28 @@ DISCLAIMER = (
 )
 
 
+# ----------------------------------------------------------------------
+# Synthesis is deliberately NOT wired into the HTTP surface yet.
+#
+# `run_synthesis`, `ClaudeMarketSynthesizer` and the whole validation chain are
+# implemented and tested. What does not exist is a **trusted runtime source of
+# a `SynthesisContext`**: no market-data provider is composed here, there is no
+# analysis route, and nothing persists a deterministic analysis a request could
+# name. A synthesis endpoint would therefore have had exactly one reachable
+# answer - "there is nothing to synthesise" - while looking operational in the
+# OpenAPI document.
+#
+# The alternatives were worse. Accepting an analysis from the request body
+# would hand a client the ActionEnvelope, which is the Phase 6 provenance
+# defect rebuilt deliberately. An in-memory pseudo-store would be fake
+# persistence. Both were rejected.
+#
+# So the endpoint is deferred to the phase that introduces the analysis
+# lifecycle. That phase wires a market-data provider and a context source here,
+# and adds the route; nothing in the synthesis packages needs to change.
+# ----------------------------------------------------------------------
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the application with all dependencies wired."""
     settings = settings or get_settings()

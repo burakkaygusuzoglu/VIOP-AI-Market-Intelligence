@@ -85,6 +85,64 @@ class Settings(BaseSettings):
     """Response budget for one extraction. Not a business input: nothing in
     the analysis depends on token counts."""
 
+    # Wired in Phase 7B: the Claude synthesis adapter reads these. The API key
+    # is shared with vision - one Anthropic credential per deployment - while
+    # the model is separate, because synthesis and screenshot extraction are
+    # different jobs and a deployment may reasonably size them differently.
+    synthesis_model: str = Field(default="")
+    """Which model performs narrative synthesis.
+
+    **Deliberately empty by default**, for the same reason as `vision_model`:
+    §11 forbids a hidden fallback, and an unconfigured deployment returns
+    NOT_CONFIGURED rather than silently choosing a model nobody verified.
+    """
+
+    synthesis_timeout_seconds: float = Field(default=90.0, gt=0)
+    """Longer than vision: synthesis writes several paragraphs."""
+
+    synthesis_max_retries: int = Field(default=2, ge=0)
+    synthesis_max_output_tokens: int = Field(default=4096, gt=0)
+
+    synthesis_context_window: int = Field(default=0, ge=0)
+    """The model's hard context limit, in tokens.
+
+    **Deliberately 0 (unset) by default.** A context window is a fact about a
+    provider's catalogue that changes without notice; §118 forbids inventing
+    one, so an unset value makes synthesis report NOT_CONFIGURED rather than
+    budgeting against a number nobody verified.
+    """
+
+    synthesis_safety_reserve_tokens: int = Field(default=2_000, ge=0)
+    """Whole-request cushion held back from the window, beyond the estimate's
+    own margin. See `synthesis/tokens.py`."""
+
+    synthesis_max_prompt_tokens: int = Field(default=0, ge=0)
+    """Optional *stricter* application cap on the input, in tokens.
+
+    0 means "no extra cap": the window minus output and reserve is the
+    allowance. A cap may lower that and may never raise it.
+    """
+
+    synthesis_max_context_entries: int = Field(default=120, gt=0)
+
+    @property
+    def synthesis_is_configured(self) -> bool:
+        """Whether a synthesis call could be attempted at all.
+
+        Requires a key, a model **and** a context window. The window is part of
+        the check because budgeting against an invented one is worse than not
+        budgeting: it looks like a safeguard. A missing piece produces a typed
+        NOT_CONFIGURED rather than a provider round trip.
+        """
+        key = (
+            self.anthropic_api_key.get_secret_value() if self.anthropic_api_key is not None else ""
+        )
+        return (
+            bool(key.strip())
+            and bool(self.synthesis_model.strip())
+            and self.synthesis_context_window > 0
+        )
+
     @property
     def vision_is_configured(self) -> bool:
         """Whether a vision call could be attempted at all.

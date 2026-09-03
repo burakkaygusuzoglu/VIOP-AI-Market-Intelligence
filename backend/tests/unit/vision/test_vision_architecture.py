@@ -224,17 +224,22 @@ def test_the_port_exposes_no_vendor_type_and_no_dictionary() -> None:
 
 
 @pytest.mark.unit
-def test_the_anthropic_sdk_lives_only_in_the_vision_adapter() -> None:
-    """Phase 6B added the adapter; the SDK is confined to it.
+def test_the_anthropic_sdk_lives_only_in_adapter_packages() -> None:
+    """The SDK is confined to adapters, and to nothing else.
 
-    Replaces 6A's "no adapter exists yet". The boundary that matters now is
-    that exactly one directory may import `anthropic`, so a vendor type can
-    never reach a port, a use case or the domain.
+    Phase 6B allowed exactly one directory - `adapters/vision`. Phase 7B added
+    `adapters/synthesis`, which is a genuine second adapter rather than a
+    leak, so the invariant is stated for what it always meant: a vendor type
+    may live in an adapter and may never reach a port, a use case or the
+    domain. Adding a third adapter is a deliberate edit to this list.
     """
     backend = DOMAIN.parents[1]
-    allowed = backend / "app" / "adapters" / "vision"
+    allowed = (
+        backend / "app" / "adapters" / "vision",
+        backend / "app" / "adapters" / "synthesis",
+    )
     for module in (backend / "app").rglob("*.py"):
-        if allowed in module.parents:
+        if any(directory in module.parents for directory in allowed):
             continue
         roots = {name.split(".")[0] for name in imports_of(module)}
         assert "anthropic" not in roots, f"{module.relative_to(backend)} imports the SDK"

@@ -171,6 +171,21 @@ forbidden_modules = [
     "app.domain.risk",
     "app.domain.analysis",
 ]
+# Direct imports only, since Phase 7B.
+#
+# The guarantee this contract exists for is that no adapter *computes* a
+# financial value - and computing one requires directly importing the module
+# that does it, which is still caught. What the module-level phrasing could not
+# express is the transitive case: the synthesis adapter returns a
+# `SynthesisDraft`, whose `ScenarioCase` lives in `app.domain.analysis`, so
+# *any* synthesis adapter reaches the analysis package through its own return
+# type. Forbidding that would forbid the adapter existing at all, not stop it
+# calculating anything.
+#
+# Verified before relaxing: no adapter in the tree directly imports any of
+# these packages, so nothing already-broken is being hidden, and
+# `test_architecture.py` proves a direct import still breaks this contract.
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 # Phase 3. The risk engine is the numerical authority for money (master spec
@@ -271,6 +286,66 @@ source_modules = [
     "app.domain.market",
 ]
 forbidden_modules = ["app.domain.vision"]
+
+[[tool.importlinter.contracts]]
+# Phase 7A. Synthesis is the top of the domain: it reads finished results from
+# every engine below and nothing reads it back. The reverse direction would let
+# an indicator, a risk figure or a veto depend on what a narrative concluded,
+# which is the circular definition every earlier contract exists to prevent -
+# and it is the specific way an LLM's opinion would leak into a number.
+name = "Nothing beneath the synthesis layer depends on it"
+type = "forbidden"
+source_modules = [
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.futures",
+    "app.domain.market",
+    "app.domain.common",
+    "app.domain.risk",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.vision",
+]
+forbidden_modules = ["app.domain.synthesis"]
+
+[[tool.importlinter.contracts]]
+# Phase 7A. Master spec section 1 and CLAUDE.md: the LLM interprets and
+# explains, and is never the source of truth for a number. Synthesis aggregates
+# finished results; it has no business calling an indicator routine, and a
+# second implementation of one is exactly how two answers to the same question
+# appear.
+#
+# `allow_indirect_imports` is set deliberately. Synthesis must import the
+# Phase 4 veto, which legitimately reaches down through structure to the
+# indicator layer - forbidding that chain would forbid reading the veto at all.
+# The real boundary is the *direct* one: synthesis may hold a finished
+# `PositionSizing` or `SetupQuality`, and may not reach for the maths module
+# that computed it.
+name = "The synthesis layer never calls an indicator routine directly"
+type = "forbidden"
+source_modules = ["app.domain.synthesis", "app.application.synthesis"]
+forbidden_modules = [
+    "app.domain.technical.engine",
+    "app.domain.technical.momentum",
+    "app.domain.technical.smoothing",
+    "app.domain.technical.trend_strength",
+    "app.domain.technical.volatility",
+    "app.domain.technical.volume",
+    "app.domain.technical.vwap",
+    "app.domain.risk.margin",
+    "app.domain.risk.pnl",
+    "app.domain.risk.whatif",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 7A. No provider SDK exists in this phase at all, and the port must stay
+# vendor-free so 7B's adapter is the only place a client type appears.
+name = "The synthesis layer holds no provider SDK"
+type = "forbidden"
+source_modules = ["app.domain.synthesis", "app.application.synthesis", "app.application.ports"]
+forbidden_modules = ["anthropic", "httpx", "requests", "openai"]
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "API route and schema modules never reach into adapters directly"

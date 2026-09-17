@@ -36,6 +36,7 @@ from app.domain.analysis.engine import MultiTimeframeAnalysis, analyse_multi_tim
 from app.domain.analysis.scenarios import ScenarioCase
 from app.domain.analysis.timeframes import ROLES_BROADEST_FIRST, TimeframeRole
 from app.domain.common.enums import Direction
+from app.domain.futures.risk import assess_margin, size_position
 from app.domain.market.quality import (
     DataQualityCode,
     DataQualityIssue,
@@ -43,15 +44,9 @@ from app.domain.market.quality import (
     DataQualitySeverity,
     DataQualityVerdict,
 )
-from app.domain.risk.margin import MarginAssessment, assess_margin
+from app.domain.risk.margin import MarginAssessment
 from app.domain.risk.reward import risk_reward
-from app.domain.risk.sizing import (
-    AccountState,
-    PositionSizing,
-    RiskMode,
-    RiskPolicy,
-    size_position,
-)
+from app.domain.risk.sizing import AccountState, PositionSizing, RiskMode, RiskPolicy
 from tests.factories_analysis import BEARISH_DRIFT, BULLISH_DRIFT, market_view
 from tests.factories_futures import contract, verified
 

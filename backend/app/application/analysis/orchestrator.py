@@ -11,7 +11,7 @@ an engine that already existed and is already tested:
       -> analyse_multi_timeframe           Phase 4  (evidence, contradictions,
                                                      fusion, scenarios)
       -> assess_no_trade per direction     Phase 4/suitability
-      -> size_position                     Phase 3  (only when it is honest to)
+      -> size_for_product                  Phase 3  (only when it is honest to)
 
 There is no formula in this module. If a value is not returned by one of the
 calls above, it is not in the result — the alternative, computing "just this
@@ -63,9 +63,11 @@ from app.domain.analysis.timeframes import (
 )
 from app.domain.common.enums import Direction, Timeframe
 from app.domain.futures.contract import FuturesContract
+from app.domain.futures.policy import FuturesProductPolicy
+from app.domain.instrument.policy import ProductPolicy
 from app.domain.market.quality import DataQualityEngine, DataQualityReport
 from app.domain.market.series import CandleSeries, ValidatedCandleSeries
-from app.domain.risk.sizing import PositionSizing, RiskInputError, size_position
+from app.domain.risk.sizing import PositionSizing, RiskInputError, size_for_product
 from app.domain.structure.engine import StructureSnapshot, analyse_structure
 from app.domain.suitability.no_trade import NoTradeAssessment, assess_no_trade
 from app.domain.technical.engine import TechnicalSnapshot, compute_technicals
@@ -343,6 +345,17 @@ async def _contract_for(
     return await contracts.get_contract(symbol)
 
 
+def _product_policy(contract: FuturesContract) -> ProductPolicy:
+    """The one place a product record becomes a ``ProductPolicy`` (Phase 8.5).
+
+    The contract metadata provider returns futures specifications only, so the
+    only policy that can be built is ``FuturesProductPolicy``. When a second
+    product exists, this is where its record is dispatched - once, at the
+    boundary - and nowhere in the risk engine.
+    """
+    return FuturesProductPolicy(contract)
+
+
 def _is_verified(contract: FuturesContract | None) -> bool:
     """Whether the facts sizing depends on are current verified facts.
 
@@ -402,7 +415,9 @@ def _assess_risk(request: AnalysisRequest, contract: FuturesContract | None) -> 
         )
 
     try:
-        sizing = size_position(direction, entry, stop, contract, account, policy)
+        sizing = size_for_product(
+            direction, entry, stop, _product_policy(contract), account, policy
+        )
     except RiskInputError as error:
         return RiskOutcome(
             sizing=None,

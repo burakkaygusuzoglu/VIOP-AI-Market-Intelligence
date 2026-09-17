@@ -14,6 +14,10 @@ why the exposure and leverage figures are reported next to the margin ones.
 above 50%" is a choice this project offers as a default, not a VIOP rule, and
 it is presented as such. Section 45 forbids automatically changing a user's
 configured real-money risk, so the engine warns and never adjusts.
+
+**Product-agnostic since Phase 8.5.** The point value and the margin per unit
+arrive through a ``ProductPolicy``; ``app.domain.futures.risk.assess_margin``
+binds a ``FuturesContract`` to this engine.
 """
 
 from __future__ import annotations
@@ -23,8 +27,7 @@ from decimal import Decimal
 from enum import StrEnum, unique
 
 from app.domain.common.arithmetic import as_percent, safe_ratio
-from app.domain.futures.contract import FuturesContract
-from app.domain.futures.validation import require_calculable
+from app.domain.instrument.policy import ProductPolicy, require_product_calculable
 from app.domain.risk.sizing import AccountState, MarginFeasibility, RiskPolicy
 
 
@@ -124,8 +127,8 @@ def effective_leverage(exposure: Decimal, account_equity: Decimal) -> Decimal | 
     return safe_ratio(exposure, account_equity)
 
 
-def assess_margin(
-    contract: FuturesContract,
+def assess_margin_for_product(
+    product: ProductPolicy,
     account: AccountState,
     entry_price: Decimal,
     contracts: int,
@@ -134,14 +137,16 @@ def assess_margin(
 ) -> MarginAssessment:
     """Build the section 44 panel for a proposed position.
 
+    ``contracts`` is the quantity in the product's own units - kept under its
+    Phase 3 name because it is part of ``MarginAssessment``'s public shape.
     ``risk_to_stop`` is the money at risk if the stop is hit - supplied by the
     caller because it comes from the sizing step. When given, it is checked
     against the configured risk budget.
     """
-    contract.requires_linear_valuation("margin assessment")
-    require_calculable(contract, "margin assessment")
+    require_product_calculable(product, "margin assessment")
 
-    multiplier = contract.authoritative_multiplier()
+    point = product.point_value()
+    multiplier = point.value if point.is_authoritative else None
     exposure = (
         notional_exposure(entry_price, multiplier, contracts)
         if multiplier is not None and contracts > 0
@@ -149,13 +154,9 @@ def assess_margin(
     )
     leverage = effective_leverage(exposure, account.equity) if exposure is not None else None
 
-    margin_per_contract = contract.authoritative_initial_margin()
-    if contract.initial_margin is None:
-        feasibility = MarginFeasibility.MISSING
-    elif margin_per_contract is None:
-        feasibility = MarginFeasibility.UNVERIFIED
-    else:
-        feasibility = MarginFeasibility.KNOWN
+    requirement = product.margin_requirement()
+    feasibility = requirement.feasibility
+    margin_per_contract = requirement.per_unit
 
     required: Decimal | None = None
     resulting_used: Decimal | None = None

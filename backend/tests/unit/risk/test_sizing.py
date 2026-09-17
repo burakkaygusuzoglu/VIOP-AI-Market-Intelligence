@@ -12,6 +12,7 @@ from decimal import Decimal
 import pytest
 
 from app.domain.common.enums import Direction
+from app.domain.futures.risk import size_position
 from app.domain.risk.sizing import (
     AccountState,
     MarginFeasibility,
@@ -19,7 +20,6 @@ from app.domain.risk.sizing import (
     RiskMode,
     RiskPolicy,
     SizingOutcome,
-    size_position,
     stop_distance,
 )
 from tests.factories_futures import contract, unverified, verified

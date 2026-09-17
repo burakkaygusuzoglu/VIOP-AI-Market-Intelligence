@@ -1,0 +1,2590 @@
+{
+ "api": {
+  "api/no_contract_no_risk": {
+   "digest": "3c09a02c0770ae21e9515195aa33d7de3634ef9ce84bfecd089b4d9731d4fc9d",
+   "extract": {
+    "analysis_id": "830d84dfa5a8ba62e90882b2659f6d78cdab199fe4ef3a66fd25b41005334519",
+    "missing": [
+     "Doğrulanmış kontrat bilgisi yok (çarpan, tik büyüklüğü).",
+     "Hesap bakiyesi girilmedi.",
+     "Risk ayarları girilmedi.",
+     "Planlanan giriş fiyatı girilmedi.",
+     "Stop fiyatı girilmedi."
+    ],
+    "position_size_why": [
+     {
+      "available": false,
+      "omitted_reason_count": 0,
+      "reasons": [],
+      "subject": "Pozisyon büyüklüğü",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": "Doğrulanmış kontrat bilgisi yok (çarpan, tik büyüklüğü). Hesap bakiyesi girilmedi. Risk ayarları girilmedi. Planlanan giriş fiyatı girilmedi. Stop fiyatı girilmedi."
+     }
+    ],
+    "risk": {
+     "available": false,
+     "contract": null,
+     "detail": "Pozisyon büyüklüğü hesaplanamadı.",
+     "direction": null,
+     "facts": [],
+     "outcome": "UNAVAILABLE",
+     "unavailable_reasons": [
+      "Doğrulanmış kontrat bilgisi yok (çarpan, tik büyüklüğü).",
+      "Hesap bakiyesi girilmedi.",
+      "Risk ayarları girilmedi.",
+      "Planlanan giriş fiyatı girilmedi.",
+      "Stop fiyatı girilmedi."
+     ],
+     "warnings": []
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade",
+       "an explicit Phase 3 position-sizing result for the account"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade",
+       "an explicit Phase 3 position-sizing result for the account"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  },
+  "api/no_contract_with_risk": {
+   "digest": "598b27e021c97d55ec7627854cbdfcb81e181afe77b4209a8c5d913dad12a985",
+   "extract": {
+    "analysis_id": "b65d8e6dff87f66a53b3aba1a69357e257ba037bff05f54c0cb6f1aa0664533a",
+    "missing": [
+     "Doğrulanmış kontrat bilgisi yok (çarpan, tik büyüklüğü)."
+    ],
+    "position_size_why": [
+     {
+      "available": false,
+      "omitted_reason_count": 0,
+      "reasons": [],
+      "subject": "Pozisyon büyüklüğü",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": "Doğrulanmış kontrat bilgisi yok (çarpan, tik büyüklüğü)."
+     }
+    ],
+    "risk": {
+     "available": false,
+     "contract": null,
+     "detail": "Pozisyon büyüklüğü hesaplanamadı.",
+     "direction": "LONG",
+     "facts": [],
+     "outcome": "UNAVAILABLE",
+     "unavailable_reasons": [
+      "Doğrulanmış kontrat bilgisi yok (çarpan, tik büyüklüğü)."
+     ],
+     "warnings": []
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade",
+       "an explicit Phase 3 position-sizing result for the account"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade",
+       "an explicit Phase 3 position-sizing result for the account"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  },
+  "api/off_grid": {
+   "digest": "770092419d976dd631a7e60185aedd166cd3a317b3e45a177cd53c7a997bb553",
+   "extract": {
+    "analysis_id": "af7e802475059b00f6d9c91e31123a851a083e74f3a741162131d8ab172ce635",
+    "missing": [],
+    "position_size_why": [
+     {
+      "available": true,
+      "omitted_reason_count": 0,
+      "reasons": [
+       {
+        "beginner": "Pozisyon büyüklüğü için geçersiz.",
+        "code": "OUTCOME:INVALID",
+        "pro": "outcome=INVALID. entry 120.10 is not a whole number of 0.25 ticks; the levels are preserved and were not rounded to the grid",
+        "role": null,
+        "severity": "CRITICAL",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Teminat durumu doğrulanamadı; bu bir kısıtın karşılandığı anlamına gelmez.",
+        "code": "MARGIN:MISSING",
+        "pro": "margin_feasibility=MISSING, maximum_by_margin=None",
+        "role": null,
+        "severity": "NOTABLE",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Giriş/zarar kes seviyelerinin fiyat adımına uygunluğu doğrulanamadı.",
+        "code": "TICK:OFF_GRID",
+        "pro": "tick_feasibility=OFF_GRID",
+        "role": null,
+        "severity": "NOTABLE",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       }
+      ],
+      "subject": "Pozisyon büyüklüğü: None",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": ""
+     }
+    ],
+    "risk": {
+     "available": false,
+     "contract": {
+      "multiplier": "10",
+      "multiplier_status": "VERIFIED_CURRENT_FACT",
+      "symbol": "TEST_FIXTURE_FUT",
+      "tick_size": "0.25",
+      "tick_size_status": "VERIFIED_CURRENT_FACT",
+      "verified": true
+     },
+     "detail": "entry 120.10 is not a whole number of 0.25 ticks; the levels are preserved and were not rounded to the grid",
+     "direction": "LONG",
+     "facts": [],
+     "outcome": "UNDETERMINED",
+     "unavailable_reasons": [
+      "entry 120.10 is not a whole number of 0.25 ticks; the levels are preserved and were not rounded to the grid"
+     ],
+     "warnings": [
+      "margin:MISSING",
+      "tick:OFF_GRID"
+     ]
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "RISK_NOT_PERMITTED",
+        "detail": "position sizing returned INVALID: entry 120.10 is not a whole number of 0.25 ticks; the levels are preserved and were not rounded to the grid",
+        "id": "FN-9E50A1F260",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "RISK_NOT_PERMITTED",
+        "detail": "position sizing returned INVALID: entry 120.10 is not a whole number of 0.25 ticks; the levels are preserved and were not rounded to the grid",
+        "id": "FN-9E50A1F260",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  },
+  "api/section_42_not_permitted": {
+   "digest": "fec0938fc7e5a3476a709df57394fb0d521f5ddddefae60a12c3d5a0262945cb",
+   "extract": {
+    "analysis_id": "4cb28df6473ddea17ec1e204d7ceefbbb2255b59eda2f7ab4e3301c2554e6de2",
+    "missing": [],
+    "position_size_why": [
+     {
+      "available": true,
+      "omitted_reason_count": 0,
+      "reasons": [
+       {
+        "beginner": "Pozisyon büyüklüğü için izin verilmedi.",
+        "code": "OUTCOME:NOT_PERMITTED",
+        "pro": "outcome=NOT_PERMITTED. one contract would risk 100, which exceeds the configured risk of 75; no position is permitted",
+        "role": null,
+        "severity": "CRITICAL",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Tek sözleşmenin zarar kes seviyesine kadarki kaybı, ayrılan risk bütçesiyle karşılaştırıldı.",
+        "code": "RISK_BUDGET",
+        "pro": "risk_amount=75, loss_per_contract=100, stop_distance=1, maximum_by_risk=0",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Teminat durumu biliniyor ve hesaba katıldı.",
+        "code": "MARGIN:KNOWN",
+        "pro": "margin_feasibility=KNOWN, maximum_by_margin=10",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Giriş ve zarar kes seviyeleri fiyat adımına uygun.",
+        "code": "TICK:ON_GRID",
+        "pro": "tick_feasibility=ON_GRID",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       }
+      ],
+      "subject": "Pozisyon büyüklüğü: 0",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": ""
+     }
+    ],
+    "risk": {
+     "available": true,
+     "contract": {
+      "multiplier": "100",
+      "multiplier_status": "VERIFIED_CURRENT_FACT",
+      "symbol": "TEST_FIXTURE_FUT",
+      "tick_size": "1",
+      "tick_size_status": "VERIFIED_CURRENT_FACT",
+      "verified": true
+     },
+     "detail": "one contract would risk 100, which exceeds the configured risk of 75; no position is permitted",
+     "direction": "LONG",
+     "facts": [
+      {
+       "currency": null,
+       "id": "FACT-ALLOWED_CONTRACTS",
+       "label": "İzin verilen kontrat",
+       "raw": "0",
+       "source": "CALCULATED",
+       "unit": "contracts"
+      },
+      {
+       "currency": null,
+       "id": "FACT-RISK_AMOUNT",
+       "label": "Risk tutarı",
+       "raw": "75",
+       "source": "CALCULATED",
+       "unit": "currency"
+      },
+      {
+       "currency": null,
+       "id": "FACT-STOP_DISTANCE",
+       "label": "Stop mesafesi",
+       "raw": "1",
+       "source": "CALCULATED",
+       "unit": "price"
+      },
+      {
+       "currency": null,
+       "id": "FACT-LOSS_PER_CONTRACT",
+       "label": "Kontrat başına zarar",
+       "raw": "100",
+       "source": "CALCULATED",
+       "unit": "currency"
+      }
+     ],
+     "outcome": "NOT_PERMITTED",
+     "unavailable_reasons": [],
+     "warnings": [
+      "margin:KNOWN",
+      "tick:ON_GRID"
+     ]
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "RISK_NOT_PERMITTED",
+        "detail": "position sizing returned NOT_PERMITTED: one contract would risk 100, which exceeds the configured risk of 75; no position is permitted",
+        "id": "FN-3FBBDE70EF",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "RISK_NOT_PERMITTED",
+        "detail": "position sizing returned NOT_PERMITTED: one contract would risk 100, which exceeds the configured risk of 75; no position is permitted",
+        "id": "FN-3FBBDE70EF",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  },
+  "api/tick_unverified": {
+   "digest": "8ba6e63f67f555a3360ec580b746a385e7b1c91b1ea001ddaf11a8528445ca1b",
+   "extract": {
+    "analysis_id": "b65d8e6dff87f66a53b3aba1a69357e257ba037bff05f54c0cb6f1aa0664533a",
+    "missing": [
+     "Kontrat bilgisi doğrulanmamış; pozisyon büyüklüğü hesaplanamaz."
+    ],
+    "position_size_why": [
+     {
+      "available": false,
+      "omitted_reason_count": 0,
+      "reasons": [],
+      "subject": "Pozisyon büyüklüğü",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": "Kontrat bilgisi doğrulanmamış; pozisyon büyüklüğü hesaplanamaz."
+     }
+    ],
+    "risk": {
+     "available": false,
+     "contract": {
+      "multiplier": "10",
+      "multiplier_status": "VERIFIED_CURRENT_FACT",
+      "symbol": "TEST_FIXTURE_FUT",
+      "tick_size": "0.25",
+      "tick_size_status": "DEVELOPMENT_DEFAULT",
+      "verified": false
+     },
+     "detail": "Pozisyon büyüklüğü hesaplanamadı.",
+     "direction": "LONG",
+     "facts": [],
+     "outcome": "UNAVAILABLE",
+     "unavailable_reasons": [
+      "Kontrat bilgisi doğrulanmamış; pozisyon büyüklüğü hesaplanamaz."
+     ],
+     "warnings": []
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade",
+       "an explicit Phase 3 position-sizing result for the account"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade",
+       "an explicit Phase 3 position-sizing result for the account"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  },
+  "api/unverified_contract": {
+   "digest": "fc244ede224b9b3338c31071d298b420234345d4bdf6ea0366caa553b006019e",
+   "extract": {
+    "analysis_id": "b65d8e6dff87f66a53b3aba1a69357e257ba037bff05f54c0cb6f1aa0664533a",
+    "missing": [
+     "Kontrat bilgisi doğrulanmamış; pozisyon büyüklüğü hesaplanamaz."
+    ],
+    "position_size_why": [
+     {
+      "available": false,
+      "omitted_reason_count": 0,
+      "reasons": [],
+      "subject": "Pozisyon büyüklüğü",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": "Kontrat bilgisi doğrulanmamış; pozisyon büyüklüğü hesaplanamaz."
+     }
+    ],
+    "risk": {
+     "available": false,
+     "contract": {
+      "multiplier": "10",
+      "multiplier_status": "UNVERIFIED",
+      "symbol": "TEST_FIXTURE_FUT",
+      "tick_size": "0.25",
+      "tick_size_status": "UNVERIFIED",
+      "verified": false
+     },
+     "detail": "Pozisyon büyüklüğü hesaplanamadı.",
+     "direction": "LONG",
+     "facts": [],
+     "outcome": "UNAVAILABLE",
+     "unavailable_reasons": [
+      "Kontrat bilgisi doğrulanmamış; pozisyon büyüklüğü hesaplanamaz."
+     ],
+     "warnings": []
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade",
+       "an explicit Phase 3 position-sizing result for the account"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade",
+       "an explicit Phase 3 position-sizing result for the account"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  },
+  "api/verified_allowed": {
+   "digest": "634e4dd84e0707041aaa637c31828cd42e39b833a75a58e37a4a32d12fadbb49",
+   "extract": {
+    "analysis_id": "b65d8e6dff87f66a53b3aba1a69357e257ba037bff05f54c0cb6f1aa0664533a",
+    "missing": [],
+    "position_size_why": [
+     {
+      "available": true,
+      "omitted_reason_count": 0,
+      "reasons": [
+       {
+        "beginner": "Pozisyon büyüklüğü için izin verildi.",
+        "code": "OUTCOME:ALLOWED",
+        "pro": "outcome=ALLOWED. 20 contract(s) permitted; the binding constraint is margin",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Tek sözleşmenin zarar kes seviyesine kadarki kaybı, ayrılan risk bütçesiyle karşılaştırıldı.",
+        "code": "RISK_BUDGET",
+        "pro": "risk_amount=1000, loss_per_contract=20.00, stop_distance=2.00, maximum_by_risk=50",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Teminat durumu biliniyor ve hesaba katıldı.",
+        "code": "MARGIN:KNOWN",
+        "pro": "margin_feasibility=KNOWN, maximum_by_margin=20",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Giriş ve zarar kes seviyeleri fiyat adımına uygun.",
+        "code": "TICK:ON_GRID",
+        "pro": "tick_feasibility=ON_GRID",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       }
+      ],
+      "subject": "Pozisyon büyüklüğü: 20",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": ""
+     }
+    ],
+    "risk": {
+     "available": true,
+     "contract": {
+      "multiplier": "10",
+      "multiplier_status": "VERIFIED_CURRENT_FACT",
+      "symbol": "TEST_FIXTURE_FUT",
+      "tick_size": "0.25",
+      "tick_size_status": "VERIFIED_CURRENT_FACT",
+      "verified": true
+     },
+     "detail": "20 contract(s) permitted; the binding constraint is margin",
+     "direction": "LONG",
+     "facts": [
+      {
+       "currency": null,
+       "id": "FACT-ALLOWED_CONTRACTS",
+       "label": "İzin verilen kontrat",
+       "raw": "20",
+       "source": "CALCULATED",
+       "unit": "contracts"
+      },
+      {
+       "currency": null,
+       "id": "FACT-RISK_AMOUNT",
+       "label": "Risk tutarı",
+       "raw": "1000",
+       "source": "CALCULATED",
+       "unit": "currency"
+      },
+      {
+       "currency": null,
+       "id": "FACT-STOP_DISTANCE",
+       "label": "Stop mesafesi",
+       "raw": "2.00",
+       "source": "CALCULATED",
+       "unit": "price"
+      },
+      {
+       "currency": null,
+       "id": "FACT-LOSS_PER_CONTRACT",
+       "label": "Kontrat başına zarar",
+       "raw": "20.00",
+       "source": "CALCULATED",
+       "unit": "currency"
+      }
+     ],
+     "outcome": "ALLOWED",
+     "unavailable_reasons": [],
+     "warnings": [
+      "margin:KNOWN",
+      "tick:ON_GRID"
+     ]
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  },
+  "api/verified_allowed_with_currency_and_cap": {
+   "digest": "211599ba4b14f9163e9b841a4e415ac7add95bc5f9d93c75e604142446886d68",
+   "extract": {
+    "analysis_id": "103d544d2ca996aadddcba7c9cb3573ee137c737c923a2bd010e7137f05afe05",
+    "missing": [],
+    "position_size_why": [
+     {
+      "available": true,
+      "omitted_reason_count": 0,
+      "reasons": [
+       {
+        "beginner": "Pozisyon büyüklüğü için izin verildi.",
+        "code": "OUTCOME:ALLOWED",
+        "pro": "outcome=ALLOWED. 4 contract(s) permitted; the binding constraint is the configured contract cap",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Tek sözleşmenin zarar kes seviyesine kadarki kaybı, ayrılan risk bütçesiyle karşılaştırıldı.",
+        "code": "RISK_BUDGET",
+        "pro": "risk_amount=1000, loss_per_contract=20.00, stop_distance=2.00, maximum_by_risk=50",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Teminat durumu biliniyor ve hesaba katıldı.",
+        "code": "MARGIN:KNOWN",
+        "pro": "margin_feasibility=KNOWN, maximum_by_margin=20",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Giriş ve zarar kes seviyeleri fiyat adımına uygun.",
+        "code": "TICK:ON_GRID",
+        "pro": "tick_feasibility=ON_GRID",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       }
+      ],
+      "subject": "Pozisyon büyüklüğü: 4",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": ""
+     }
+    ],
+    "risk": {
+     "available": true,
+     "contract": {
+      "multiplier": "10",
+      "multiplier_status": "VERIFIED_CURRENT_FACT",
+      "symbol": "TEST_FIXTURE_FUT",
+      "tick_size": "0.25",
+      "tick_size_status": "VERIFIED_CURRENT_FACT",
+      "verified": true
+     },
+     "detail": "4 contract(s) permitted; the binding constraint is the configured contract cap",
+     "direction": "LONG",
+     "facts": [
+      {
+       "currency": null,
+       "id": "FACT-ALLOWED_CONTRACTS",
+       "label": "İzin verilen kontrat",
+       "raw": "4",
+       "source": "CALCULATED",
+       "unit": "contracts"
+      },
+      {
+       "currency": null,
+       "id": "FACT-RISK_AMOUNT",
+       "label": "Risk tutarı",
+       "raw": "1000",
+       "source": "CALCULATED",
+       "unit": "currency"
+      },
+      {
+       "currency": null,
+       "id": "FACT-STOP_DISTANCE",
+       "label": "Stop mesafesi",
+       "raw": "2.00",
+       "source": "CALCULATED",
+       "unit": "price"
+      },
+      {
+       "currency": null,
+       "id": "FACT-LOSS_PER_CONTRACT",
+       "label": "Kontrat başına zarar",
+       "raw": "20.00",
+       "source": "CALCULATED",
+       "unit": "currency"
+      }
+     ],
+     "outcome": "ALLOWED",
+     "unavailable_reasons": [],
+     "warnings": [
+      "margin:KNOWN",
+      "tick:ON_GRID"
+     ]
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  },
+  "api/verified_margin_missing": {
+   "digest": "3b2f8d95cbd46be545cdf3724743ba7576b5d21e52ca0456edb94f3e53496e27",
+   "extract": {
+    "analysis_id": "b65d8e6dff87f66a53b3aba1a69357e257ba037bff05f54c0cb6f1aa0664533a",
+    "missing": [],
+    "position_size_why": [
+     {
+      "available": true,
+      "omitted_reason_count": 0,
+      "reasons": [
+       {
+        "beginner": "Pozisyon büyüklüğü için belirlenemedi.",
+        "code": "OUTCOME:UNDETERMINED",
+        "pro": "outcome=UNDETERMINED. risk sizing permits 50 contract(s), but no initial margin was supplied, so the final allowance cannot be determined",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Tek sözleşmenin zarar kes seviyesine kadarki kaybı, ayrılan risk bütçesiyle karşılaştırıldı.",
+        "code": "RISK_BUDGET",
+        "pro": "risk_amount=1000, loss_per_contract=20.00, stop_distance=2.00, maximum_by_risk=50",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Teminat durumu doğrulanamadı; bu bir kısıtın karşılandığı anlamına gelmez.",
+        "code": "MARGIN:MISSING",
+        "pro": "margin_feasibility=MISSING, maximum_by_margin=None",
+        "role": null,
+        "severity": "NOTABLE",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Giriş ve zarar kes seviyeleri fiyat adımına uygun.",
+        "code": "TICK:ON_GRID",
+        "pro": "tick_feasibility=ON_GRID",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       }
+      ],
+      "subject": "Pozisyon büyüklüğü: None",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": ""
+     }
+    ],
+    "risk": {
+     "available": false,
+     "contract": {
+      "multiplier": "10",
+      "multiplier_status": "VERIFIED_CURRENT_FACT",
+      "symbol": "TEST_FIXTURE_FUT",
+      "tick_size": "0.25",
+      "tick_size_status": "VERIFIED_CURRENT_FACT",
+      "verified": true
+     },
+     "detail": "risk sizing permits 50 contract(s), but no initial margin was supplied, so the final allowance cannot be determined",
+     "direction": "LONG",
+     "facts": [
+      {
+       "currency": null,
+       "id": "FACT-RISK_AMOUNT",
+       "label": "Risk tutarı",
+       "raw": "1000",
+       "source": "CALCULATED",
+       "unit": "currency"
+      },
+      {
+       "currency": null,
+       "id": "FACT-STOP_DISTANCE",
+       "label": "Stop mesafesi",
+       "raw": "2.00",
+       "source": "CALCULATED",
+       "unit": "price"
+      },
+      {
+       "currency": null,
+       "id": "FACT-LOSS_PER_CONTRACT",
+       "label": "Kontrat başına zarar",
+       "raw": "20.00",
+       "source": "CALCULATED",
+       "unit": "currency"
+      }
+     ],
+     "outcome": "UNDETERMINED",
+     "unavailable_reasons": [
+      "risk sizing permits 50 contract(s), but no initial margin was supplied, so the final allowance cannot be determined"
+     ],
+     "warnings": [
+      "margin:MISSING",
+      "tick:ON_GRID"
+     ]
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "RISK_UNDETERMINED",
+        "detail": "position sizing could not be determined: risk sizing permits 50 contract(s), but no initial margin was supplied, so the final allowance cannot be determined",
+        "id": "FN-34F084BC8B",
+        "severity": "CAUTION"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "RISK_UNDETERMINED",
+        "detail": "position sizing could not be determined: risk sizing permits 50 contract(s), but no initial margin was supplied, so the final allowance cannot be determined",
+        "id": "FN-34F084BC8B",
+        "severity": "CAUTION"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  },
+  "api/verified_short": {
+   "digest": "02ce0d62fb6303c64e246996827bfe424c6de85a7467e34dabe7a515f7d9b32d",
+   "extract": {
+    "analysis_id": "a83532bf7406cac5df0ee2e2a0832eebce040db1d7c6f6a3db65e9931b90b8e5",
+    "missing": [],
+    "position_size_why": [
+     {
+      "available": true,
+      "omitted_reason_count": 0,
+      "reasons": [
+       {
+        "beginner": "Pozisyon büyüklüğü için izin verildi.",
+        "code": "OUTCOME:ALLOWED",
+        "pro": "outcome=ALLOWED. 20 contract(s) permitted; the binding constraint is margin",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Tek sözleşmenin zarar kes seviyesine kadarki kaybı, ayrılan risk bütçesiyle karşılaştırıldı.",
+        "code": "RISK_BUDGET",
+        "pro": "risk_amount=1000, loss_per_contract=20.00, stop_distance=2.00, maximum_by_risk=50",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Teminat durumu biliniyor ve hesaba katıldı.",
+        "code": "MARGIN:KNOWN",
+        "pro": "margin_feasibility=KNOWN, maximum_by_margin=20",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       },
+       {
+        "beginner": "Giriş ve zarar kes seviyeleri fiyat adımına uygun.",
+        "code": "TICK:ON_GRID",
+        "pro": "tick_feasibility=ON_GRID",
+        "role": null,
+        "severity": "INFO",
+        "source": "RISK_ENGINE",
+        "timeframe": null
+       }
+      ],
+      "subject": "Pozisyon büyüklüğü: 20",
+      "topic": "POSITION_SIZE",
+      "unavailable_reason": ""
+     }
+    ],
+    "risk": {
+     "available": true,
+     "contract": {
+      "multiplier": "10",
+      "multiplier_status": "VERIFIED_CURRENT_FACT",
+      "symbol": "TEST_FIXTURE_FUT",
+      "tick_size": "0.25",
+      "tick_size_status": "VERIFIED_CURRENT_FACT",
+      "verified": true
+     },
+     "detail": "20 contract(s) permitted; the binding constraint is margin",
+     "direction": "SHORT",
+     "facts": [
+      {
+       "currency": null,
+       "id": "FACT-ALLOWED_CONTRACTS",
+       "label": "İzin verilen kontrat",
+       "raw": "20",
+       "source": "CALCULATED",
+       "unit": "contracts"
+      },
+      {
+       "currency": null,
+       "id": "FACT-RISK_AMOUNT",
+       "label": "Risk tutarı",
+       "raw": "1000",
+       "source": "CALCULATED",
+       "unit": "currency"
+      },
+      {
+       "currency": null,
+       "id": "FACT-STOP_DISTANCE",
+       "label": "Stop mesafesi",
+       "raw": "2.00",
+       "source": "CALCULATED",
+       "unit": "price"
+      },
+      {
+       "currency": null,
+       "id": "FACT-LOSS_PER_CONTRACT",
+       "label": "Kontrat başına zarar",
+       "raw": "20.00",
+       "source": "CALCULATED",
+       "unit": "currency"
+      }
+     ],
+     "outcome": "ALLOWED",
+     "unavailable_reasons": [],
+     "warnings": [
+      "margin:KNOWN",
+      "tick:ON_GRID"
+     ]
+    },
+    "status_code_ok": true,
+    "suitability": [
+     {
+      "direction": "BULLISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     },
+     {
+      "direction": "BEARISH",
+      "findings": [
+       {
+        "code": "UNCLEAR_STRUCTURE",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-02F891549B",
+        "severity": "BLOCKING"
+       },
+       {
+        "code": "INSUFFICIENT_DATA",
+        "detail": "the 1H bias could not be read",
+        "id": "FN-BA2A6E84ED",
+        "severity": "BLOCKING"
+       }
+      ],
+      "missing_requirements": [
+       "a Data Quality verdict for the underlying candles",
+       "an explicit Phase 3 risk/reward result for a proposed trade"
+      ],
+      "no_trade": true
+     }
+    ],
+    "synthesis_status": "NOT_CONFIGURED"
+   },
+   "status": 200
+  }
+ },
+ "captured_from": "Phase 8 code at commit 1c3d555, before any Phase 8.5 change",
+ "domain": {
+  "implied_tick_value/inverse": {
+   "message": "implied tick value supports LINEAR valuation only, got INVERSE",
+   "raises": "UnsupportedValuationModelError"
+  },
+  "implied_tick_value/tick_value_consistent": {
+   "result": "2.50"
+  },
+  "implied_tick_value/unverified_all": {
+   "result": null
+  },
+  "implied_tick_value/verified": {
+   "result": "2.50"
+  },
+  "issues/fixture_multiplier": {
+   "result": [
+    {
+     "blocking": true,
+     "code": "UNVERIFIED_MULTIPLIER",
+     "message": "multiplier is TEST_FIXTURE from 'golden fixture'; contract arithmetic would be unreliable"
+    },
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/fractional_multiplier": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/inverse": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/margin_unverified": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "UNVERIFIED_MARGIN",
+     "message": "initial_margin is MOCK_DATA from 'golden fixture'; margin feasibility is unknown"
+    },
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/quanto": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/spec_section_42": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/tick_unverified": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "UNVERIFIED_TICK_SIZE",
+     "message": "tick_size is DEVELOPMENT_DEFAULT from 'golden fixture'"
+    },
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/tick_value_consistent": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/tick_value_inconsistent": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    },
+    {
+     "blocking": true,
+     "code": "TICK_VALUE_INCONSISTENT",
+     "message": "tick_value 3 does not equal tick_size 0.25 x multiplier 10 = 2.50"
+    }
+   ]
+  },
+  "issues/unverified_all": {
+   "result": [
+    {
+     "blocking": true,
+     "code": "UNVERIFIED_MULTIPLIER",
+     "message": "multiplier is UNVERIFIED from 'golden fixture'; contract arithmetic would be unreliable"
+    },
+    {
+     "blocking": false,
+     "code": "UNVERIFIED_TICK_SIZE",
+     "message": "tick_size is UNVERIFIED from 'golden fixture'"
+    },
+    {
+     "blocking": false,
+     "code": "UNVERIFIED_MARGIN",
+     "message": "initial_margin is UNVERIFIED from 'golden fixture'; margin feasibility is unknown"
+    },
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/verified": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "issues/verified_no_margin": {
+   "result": [
+    {
+     "blocking": false,
+     "code": "MISSING_MARGIN",
+     "message": "no initial margin supplied; margin feasibility cannot be decided"
+    },
+    {
+     "blocking": false,
+     "code": "MISSING_EXPIRY",
+     "message": "no expiry supplied; the contract state cannot be decided"
+    }
+   ]
+  },
+  "margin/deficit": {
+   "result": {
+    "account_equity": "2500",
+    "available_for_new_positions": "0",
+    "contracts": 1,
+    "effective_leverage": "0.48",
+    "free_margin": "-200",
+    "margin_deficit": "200",
+    "margin_feasibility": "KNOWN",
+    "margin_utilisation": "3.08",
+    "notional_exposure": "1200.00",
+    "remaining_free_margin": "-5200",
+    "required_margin": "5000",
+    "resulting_used_margin": "7700",
+    "risk_to_stop": null,
+    "used_margin": "2700",
+    "warnings": [
+     {
+      "code": "MARGIN_DEFICIT",
+      "message": "committed margin 2700 exceeds equity 2500 by 200; the account is past its own margin and no new position can be funded",
+      "observed": "200",
+      "threshold": null
+     },
+     {
+      "code": "HIGH_MARGIN_UTILIZATION",
+      "message": "margin utilisation 308.00% exceeds the configured policy limit of 50.0% (a user setting, not an exchange rule)",
+      "observed": "3.08",
+      "threshold": "0.5"
+     }
+    ]
+   }
+  },
+  "margin/excessive_leverage": {
+   "result": {
+    "account_equity": "2500",
+    "available_for_new_positions": "2500",
+    "contracts": 2,
+    "effective_leverage": "8.4",
+    "free_margin": "2500",
+    "margin_deficit": "0",
+    "margin_feasibility": "KNOWN",
+    "margin_utilisation": "0.2",
+    "notional_exposure": "21000",
+    "remaining_free_margin": "2000",
+    "required_margin": "500",
+    "resulting_used_margin": "500",
+    "risk_to_stop": null,
+    "used_margin": "0",
+    "warnings": [
+     {
+      "code": "EXCESSIVE_EFFECTIVE_LEVERAGE",
+      "message": "effective leverage 8.4 exceeds the configured policy limit of 5 (a user setting, not an exchange rule)",
+      "observed": "8.4",
+      "threshold": "5"
+     }
+    ]
+   }
+  },
+  "margin/healthy_with_risk": {
+   "result": {
+    "account_equity": "100000",
+    "available_for_new_positions": "100000",
+    "contracts": 3,
+    "effective_leverage": "0.036",
+    "free_margin": "100000",
+    "margin_deficit": "0",
+    "margin_feasibility": "KNOWN",
+    "margin_utilisation": "0.15",
+    "notional_exposure": "3600.00",
+    "remaining_free_margin": "85000",
+    "required_margin": "15000",
+    "resulting_used_margin": "15000",
+    "risk_to_stop": "600",
+    "used_margin": "0",
+    "warnings": []
+   }
+  },
+  "margin/high_utilisation": {
+   "result": {
+    "account_equity": "20000",
+    "available_for_new_positions": "20000",
+    "contracts": 3,
+    "effective_leverage": "0.18",
+    "free_margin": "20000",
+    "margin_deficit": "0",
+    "margin_feasibility": "KNOWN",
+    "margin_utilisation": "0.75",
+    "notional_exposure": "3600.00",
+    "remaining_free_margin": "5000",
+    "required_margin": "15000",
+    "resulting_used_margin": "15000",
+    "risk_to_stop": null,
+    "used_margin": "0",
+    "warnings": [
+     {
+      "code": "HIGH_MARGIN_UTILIZATION",
+      "message": "margin utilisation 75.00% exceeds the configured policy limit of 50.0% (a user setting, not an exchange rule)",
+      "observed": "0.75",
+      "threshold": "0.5"
+     }
+    ]
+   }
+  },
+  "margin/inverse": {
+   "message": "margin assessment supports LINEAR valuation only, got INVERSE",
+   "raises": "UnsupportedValuationModelError"
+  },
+  "margin/margin_missing": {
+   "result": {
+    "account_equity": "100000",
+    "available_for_new_positions": "100000",
+    "contracts": 3,
+    "effective_leverage": "0.036",
+    "free_margin": "100000",
+    "margin_deficit": "0",
+    "margin_feasibility": "MISSING",
+    "margin_utilisation": null,
+    "notional_exposure": "3600.00",
+    "remaining_free_margin": null,
+    "required_margin": null,
+    "resulting_used_margin": null,
+    "risk_to_stop": null,
+    "used_margin": "0",
+    "warnings": [
+     {
+      "code": "MARGIN_UNKNOWN",
+      "message": "initial margin is not supplied; margin utilisation and free margin cannot be assessed",
+      "observed": null,
+      "threshold": null
+     }
+    ]
+   }
+  },
+  "margin/margin_unverified": {
+   "result": {
+    "account_equity": "100000",
+    "available_for_new_positions": "100000",
+    "contracts": 3,
+    "effective_leverage": "0.036",
+    "free_margin": "100000",
+    "margin_deficit": "0",
+    "margin_feasibility": "UNVERIFIED",
+    "margin_utilisation": null,
+    "notional_exposure": "3600.00",
+    "remaining_free_margin": null,
+    "required_margin": null,
+    "resulting_used_margin": null,
+    "risk_to_stop": null,
+    "used_margin": "0",
+    "warnings": [
+     {
+      "code": "MARGIN_UNKNOWN",
+      "message": "initial margin is not a verified current fact; margin utilisation and free margin cannot be assessed",
+      "observed": null,
+      "threshold": null
+     }
+    ]
+   }
+  },
+  "margin/multiplier_unverified": {
+   "result": {
+    "account_equity": "100000",
+    "available_for_new_positions": "100000",
+    "contracts": 3,
+    "effective_leverage": null,
+    "free_margin": "100000",
+    "margin_deficit": "0",
+    "margin_feasibility": "KNOWN",
+    "margin_utilisation": "0.15",
+    "notional_exposure": null,
+    "remaining_free_margin": "85000",
+    "required_margin": "15000",
+    "resulting_used_margin": "15000",
+    "risk_to_stop": null,
+    "used_margin": "0",
+    "warnings": []
+   }
+  },
+  "margin/percentage_budget": {
+   "result": {
+    "account_equity": "100000",
+    "available_for_new_positions": "100000",
+    "contracts": 2,
+    "effective_leverage": "0.024",
+    "free_margin": "100000",
+    "margin_deficit": "0",
+    "margin_feasibility": "KNOWN",
+    "margin_utilisation": "0.1",
+    "notional_exposure": "2400.00",
+    "remaining_free_margin": "90000",
+    "required_margin": "10000",
+    "resulting_used_margin": "10000",
+    "risk_to_stop": "150",
+    "used_margin": "0",
+    "warnings": [
+     {
+      "code": "RISK_LIMIT_EXCEEDED",
+      "message": "risk to stop 150 exceeds the configured risk budget of 100.000",
+      "observed": "150",
+      "threshold": "100.000"
+     }
+    ]
+   }
+  },
+  "margin/risk_limit_exceeded": {
+   "result": {
+    "account_equity": "100000",
+    "available_for_new_positions": "100000",
+    "contracts": 1,
+    "effective_leverage": "0.012",
+    "free_margin": "100000",
+    "margin_deficit": "0",
+    "margin_feasibility": "KNOWN",
+    "margin_utilisation": "0.05",
+    "notional_exposure": "1200.00",
+    "remaining_free_margin": "95000",
+    "required_margin": "5000",
+    "resulting_used_margin": "5000",
+    "risk_to_stop": "20",
+    "used_margin": "0",
+    "warnings": [
+     {
+      "code": "RISK_LIMIT_EXCEEDED",
+      "message": "risk to stop 20 exceeds the configured risk budget of 10",
+      "observed": "20",
+      "threshold": "10"
+     }
+    ]
+   }
+  },
+  "margin/tick_value_inconsistent": {
+   "message": "margin assessment refused for TEST_FIXTURE_FUT: tick_value 3 does not equal tick_size 0.25 x multiplier 10 = 2.50",
+   "raises": "ContractValidationError"
+  },
+  "margin/zero_contracts": {
+   "result": {
+    "account_equity": "100000",
+    "available_for_new_positions": "100000",
+    "contracts": 0,
+    "effective_leverage": null,
+    "free_margin": "100000",
+    "margin_deficit": "0",
+    "margin_feasibility": "KNOWN",
+    "margin_utilisation": null,
+    "notional_exposure": null,
+    "remaining_free_margin": null,
+    "required_margin": null,
+    "resulting_used_margin": null,
+    "risk_to_stop": null,
+    "used_margin": "0",
+    "warnings": []
+   }
+  },
+  "pnl/break_even": {
+   "result": {
+    "contracts": 5,
+    "cost_completeness": "COMPLETE",
+    "costs": {
+     "commission": "12.5",
+     "fees": "3",
+     "slippage": "0"
+    },
+    "direction": "LONG",
+    "entry_price": "120.00",
+    "exit_price": "120.00",
+    "gross": "0.00",
+    "multiplier": "10",
+    "net": "-15.50",
+    "net_upper_bound": "-15.50"
+   }
+  },
+  "pnl/fractional_multiplier": {
+   "result": {
+    "contracts": 7,
+    "cost_completeness": "UNKNOWN",
+    "costs": null,
+    "direction": "SHORT",
+    "entry_price": "50.00",
+    "exit_price": "49.37",
+    "gross": "0.441",
+    "multiplier": "0.1",
+    "net": null,
+    "net_upper_bound": null
+   }
+  },
+  "pnl/inverse": {
+   "message": "P&L calculation supports LINEAR valuation only, got INVERSE",
+   "raises": "UnsupportedValuationModelError"
+  },
+  "pnl/long_loss_complete": {
+   "result": {
+    "contracts": 2,
+    "cost_completeness": "COMPLETE",
+    "costs": {
+     "commission": "12.5",
+     "fees": "3",
+     "slippage": "0"
+    },
+    "direction": "LONG",
+    "entry_price": "120.00",
+    "exit_price": "118.25",
+    "gross": "-35.00",
+    "multiplier": "10",
+    "net": "-50.50",
+    "net_upper_bound": "-50.50"
+   }
+  },
+  "pnl/long_win_no_costs": {
+   "result": {
+    "contracts": 3,
+    "cost_completeness": "UNKNOWN",
+    "costs": null,
+    "direction": "LONG",
+    "entry_price": "120.00",
+    "exit_price": "125.50",
+    "gross": "165.00",
+    "multiplier": "10",
+    "net": null,
+    "net_upper_bound": null
+   }
+  },
+  "pnl/neutral": {
+   "message": "NEUTRAL is not a tradeable direction for a P&L calculation",
+   "raises": "PnLInputError"
+  },
+  "pnl/short_loss_empty_costs": {
+   "result": {
+    "contracts": 1,
+    "cost_completeness": "UNKNOWN",
+    "costs": {
+     "commission": null,
+     "fees": null,
+     "slippage": null
+    },
+    "direction": "SHORT",
+    "entry_price": "120.00",
+    "exit_price": "121.00",
+    "gross": "-10.00",
+    "multiplier": "10",
+    "net": null,
+    "net_upper_bound": null
+   }
+  },
+  "pnl/short_win_partial": {
+   "result": {
+    "contracts": 4,
+    "cost_completeness": "PARTIAL",
+    "costs": {
+     "commission": "12.5",
+     "fees": null,
+     "slippage": null
+    },
+    "direction": "SHORT",
+    "entry_price": "120.00",
+    "exit_price": "117.75",
+    "gross": "90.00",
+    "multiplier": "10",
+    "net": null,
+    "net_upper_bound": "77.50"
+   }
+  },
+  "pnl/tick_value_inconsistent": {
+   "message": "P&L calculation refused for TEST_FIXTURE_FUT: tick_value 3 does not equal tick_size 0.25 x multiplier 10 = 2.50",
+   "raises": "ContractValidationError"
+  },
+  "pnl/unverified_multiplier": {
+   "message": "P&L for TEST_FIXTURE_FUT: value from 'golden fixture' is TEST_FIXTURE, not a verified current fact",
+   "raises": "UnverifiedFinancialFactError"
+  },
+  "pnl/zero_contracts": {
+   "message": "contracts must be positive, got 0",
+   "raises": "PnLInputError"
+  },
+  "reward/long_target_wrong_side": {
+   "result": {
+    "direction": "LONG",
+    "entry_price": "120",
+    "ratio": null,
+    "reason": "a LONG target must be above the entry; got entry 120 and target 119",
+    "reward_distance": null,
+    "risk_distance": "2",
+    "stop_price": "118",
+    "target_price": "119"
+   }
+  },
+  "reward/long_three_to_one": {
+   "result": {
+    "direction": "LONG",
+    "entry_price": "120",
+    "ratio": "3",
+    "reason": "reward 6 over risk 2",
+    "reward_distance": "6",
+    "risk_distance": "2",
+    "stop_price": "118",
+    "target_price": "126"
+   }
+  },
+  "reward/neutral": {
+   "result": {
+    "direction": "NEUTRAL",
+    "entry_price": "120",
+    "ratio": null,
+    "reason": "a NEUTRAL stop must be above the entry",
+    "reward_distance": null,
+    "risk_distance": null,
+    "stop_price": "118",
+    "target_price": "126"
+   }
+  },
+  "reward/short_stop_wrong_side": {
+   "result": {
+    "direction": "SHORT",
+    "entry_price": "120",
+    "ratio": null,
+    "reason": "a SHORT stop must be above the entry",
+    "reward_distance": null,
+    "risk_distance": null,
+    "stop_price": "119",
+    "target_price": "110"
+   }
+  },
+  "reward/short_two_to_one": {
+   "result": {
+    "direction": "SHORT",
+    "entry_price": "120",
+    "ratio": "2",
+    "reason": "reward 3 over risk 1.5",
+    "reward_distance": "3",
+    "risk_distance": "1.5",
+    "stop_price": "121.5",
+    "target_price": "117"
+   }
+  },
+  "size/both_off_grid": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "entry 120.10, stop 118.05 is not a whole number of 0.25 ticks; the levels are preserved and were not rounded to the grid",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "OFF_GRID"
+   }
+  },
+  "size/entry_off_grid": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "entry 120.10 is not a whole number of 0.25 ticks; the levels are preserved and were not rounded to the grid",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "OFF_GRID"
+   }
+  },
+  "size/fixture_multiplier": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "multiplier for TEST_FIXTURE_FUT is TEST_FIXTURE; position size cannot be computed from an unverified contract multiplier",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "MISSING"
+   }
+  },
+  "size/fractional_multiplier": {
+   "result": {
+    "allowed_contracts": 27,
+    "loss_per_contract": "0.037",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 250,
+    "maximum_by_risk": 27,
+    "outcome": "ALLOWED",
+    "policy_limit": null,
+    "reason": "27 contract(s) permitted; the binding constraint is risk",
+    "risk_amount": "1",
+    "stop_distance": "0.37",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/fully_committed": {
+   "result": {
+    "allowed_contracts": 0,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 0,
+    "maximum_by_risk": 50,
+    "outcome": "NOT_PERMITTED",
+    "policy_limit": null,
+    "reason": "no position is permitted; the binding constraint is margin",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/inverse_valuation": {
+   "message": "position sizing supports LINEAR valuation only, got INVERSE",
+   "raises": "UnsupportedValuationModelError"
+  },
+  "size/long_allowed_cap_binds": {
+   "result": {
+    "allowed_contracts": 7,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 20,
+    "maximum_by_risk": 50,
+    "outcome": "ALLOWED",
+    "policy_limit": 7,
+    "reason": "7 contract(s) permitted; the binding constraint is the configured contract cap",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/long_allowed_margin_binds": {
+   "result": {
+    "allowed_contracts": 20,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 20,
+    "maximum_by_risk": 50,
+    "outcome": "ALLOWED",
+    "policy_limit": null,
+    "reason": "20 contract(s) permitted; the binding constraint is margin",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/long_allowed_risk_binds": {
+   "result": {
+    "allowed_contracts": 5,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 200,
+    "maximum_by_risk": 5,
+    "outcome": "ALLOWED",
+    "policy_limit": null,
+    "reason": "5 contract(s) permitted; the binding constraint is risk",
+    "risk_amount": "100",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/long_cap_zero": {
+   "result": {
+    "allowed_contracts": 0,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 20,
+    "maximum_by_risk": 50,
+    "outcome": "NOT_PERMITTED",
+    "policy_limit": 0,
+    "reason": "no position is permitted; the binding constraint is the configured contract cap",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/margin_deficit": {
+   "result": {
+    "allowed_contracts": 0,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 0,
+    "maximum_by_risk": 50,
+    "outcome": "NOT_PERMITTED",
+    "policy_limit": null,
+    "reason": "no position is permitted; the binding constraint is margin",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/margin_missing": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": 50,
+    "outcome": "UNDETERMINED",
+    "policy_limit": null,
+    "reason": "risk sizing permits 50 contract(s), but no initial margin was supplied, so the final allowance cannot be determined",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/margin_unverified": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "UNVERIFIED",
+    "maximum_by_margin": null,
+    "maximum_by_risk": 50,
+    "outcome": "UNDETERMINED",
+    "policy_limit": null,
+    "reason": "risk sizing permits 50 contract(s), but the initial margin is not a verified current fact, so the final allowance cannot be determined",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/negative_stop": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "stop price must be positive and finite, got -1",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "MISSING"
+   }
+  },
+  "size/neutral_direction": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "NEUTRAL is not a tradeable direction",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "MISSING"
+   }
+  },
+  "size/percentage_mode": {
+   "result": {
+    "allowed_contracts": 50,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 50,
+    "maximum_by_risk": 250,
+    "outcome": "ALLOWED",
+    "policy_limit": null,
+    "reason": "50 contract(s) permitted; the binding constraint is margin",
+    "risk_amount": "5000.00",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/quanto_valuation": {
+   "message": "position sizing supports LINEAR valuation only, got QUANTO",
+   "raises": "UnsupportedValuationModelError"
+  },
+  "size/short_allowed": {
+   "result": {
+    "allowed_contracts": 20,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 20,
+    "maximum_by_risk": 50,
+    "outcome": "ALLOWED",
+    "policy_limit": null,
+    "reason": "20 contract(s) permitted; the binding constraint is margin",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/spec_section_42_not_permitted": {
+   "result": {
+    "allowed_contracts": 0,
+    "loss_per_contract": "100",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 10,
+    "maximum_by_risk": 0,
+    "outcome": "NOT_PERMITTED",
+    "policy_limit": null,
+    "reason": "one contract would risk 100, which exceeds the configured risk of 75; no position is permitted",
+    "risk_amount": "75",
+    "stop_distance": "1",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/spec_section_42_permitted": {
+   "result": {
+    "allowed_contracts": 2,
+    "loss_per_contract": "100",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 10,
+    "maximum_by_risk": 2,
+    "outcome": "ALLOWED",
+    "policy_limit": null,
+    "reason": "2 contract(s) permitted; the binding constraint is risk",
+    "risk_amount": "250",
+    "stop_distance": "1",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/stop_equals_entry": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "a LONG stop must be below the entry; got entry 120.00 and stop 120.00",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "MISSING"
+   }
+  },
+  "size/tick_unverified": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 20,
+    "maximum_by_risk": 50,
+    "outcome": "UNDETERMINED",
+    "policy_limit": null,
+    "reason": "risk sizing permits 50 contract(s), but the tick size is DEVELOPMENT_DEFAULT, so it cannot be confirmed that these levels are executable, so the final allowance cannot be determined",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "UNVERIFIED"
+   }
+  },
+  "size/tick_unverified_off_grid": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": "21.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 20,
+    "maximum_by_risk": 47,
+    "outcome": "UNDETERMINED",
+    "policy_limit": null,
+    "reason": "risk sizing permits 47 contract(s), but the tick size is DEVELOPMENT_DEFAULT, so it cannot be confirmed that these levels are executable, so the final allowance cannot be determined",
+    "risk_amount": "1000",
+    "stop_distance": "2.10",
+    "tick_feasibility": "UNVERIFIED"
+   }
+  },
+  "size/tick_value_consistent": {
+   "result": {
+    "allowed_contracts": 20,
+    "loss_per_contract": "20.00",
+    "margin_feasibility": "KNOWN",
+    "maximum_by_margin": 20,
+    "maximum_by_risk": 50,
+    "outcome": "ALLOWED",
+    "policy_limit": null,
+    "reason": "20 contract(s) permitted; the binding constraint is margin",
+    "risk_amount": "1000",
+    "stop_distance": "2.00",
+    "tick_feasibility": "ON_GRID"
+   }
+  },
+  "size/tick_value_inconsistent": {
+   "message": "position sizing refused for TEST_FIXTURE_FUT: tick_value 3 does not equal tick_size 0.25 x multiplier 10 = 2.50",
+   "raises": "ContractValidationError"
+  },
+  "size/unverified_contract": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "multiplier for TEST_FIXTURE_FUT is UNVERIFIED; position size cannot be computed from an unverified contract multiplier",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "MISSING"
+   }
+  },
+  "size/wrong_side_long": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "a LONG stop must be below the entry; got entry 120.00 and stop 121.00",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "MISSING"
+   }
+  },
+  "size/wrong_side_short": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "a SHORT stop must be above the entry; got entry 120.00 and stop 119.00",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "MISSING"
+   }
+  },
+  "size/zero_entry": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "entry price must be positive and finite, got 0",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "MISSING"
+   }
+  },
+  "size/zero_equity": {
+   "result": {
+    "allowed_contracts": null,
+    "loss_per_contract": null,
+    "margin_feasibility": "MISSING",
+    "maximum_by_margin": null,
+    "maximum_by_risk": null,
+    "outcome": "INVALID",
+    "policy_limit": null,
+    "reason": "account equity must be positive, got 0",
+    "risk_amount": null,
+    "stop_distance": null,
+    "tick_feasibility": "MISSING"
+   }
+  },
+  "state/dated/after": {
+   "result": {
+    "days_to_expiry": -2,
+    "evaluated_at": "2026-07-02T12:00:00+00:00",
+    "reason": "the expiry date 2026-06-30 has fully passed",
+    "state": "EXPIRED"
+   }
+  },
+  "state/dated/after_close_on_day": {
+   "result": {
+    "days_to_expiry": 0,
+    "evaluated_at": "2026-06-30T16:00:00+00:00",
+    "reason": "today is the expiry date 2026-06-30 and no verified last trading time is available; whether trading has ceased cannot be determined without inventing a session hour",
+    "state": "UNKNOWN"
+   }
+  },
+  "state/dated/before": {
+   "result": {
+    "days_to_expiry": 29,
+    "evaluated_at": "2026-06-01T12:00:00+00:00",
+    "reason": "the expiry date 2026-06-30 is 29 day(s) ahead",
+    "state": "ACTIVE"
+   }
+  },
+  "state/dated/on_day": {
+   "result": {
+    "days_to_expiry": 0,
+    "evaluated_at": "2026-06-30T12:00:00+00:00",
+    "reason": "today is the expiry date 2026-06-30 and no verified last trading time is available; whether trading has ceased cannot be determined without inventing a session hour",
+    "state": "UNKNOWN"
+   }
+  },
+  "state/none/after": {
+   "result": {
+    "days_to_expiry": null,
+    "evaluated_at": "2026-07-02T12:00:00+00:00",
+    "reason": "no expiry metadata was supplied",
+    "state": "UNKNOWN"
+   }
+  },
+  "state/none/after_close_on_day": {
+   "result": {
+    "days_to_expiry": null,
+    "evaluated_at": "2026-06-30T16:00:00+00:00",
+    "reason": "no expiry metadata was supplied",
+    "state": "UNKNOWN"
+   }
+  },
+  "state/none/before": {
+   "result": {
+    "days_to_expiry": null,
+    "evaluated_at": "2026-06-01T12:00:00+00:00",
+    "reason": "no expiry metadata was supplied",
+    "state": "UNKNOWN"
+   }
+  },
+  "state/none/on_day": {
+   "result": {
+    "days_to_expiry": null,
+    "evaluated_at": "2026-06-30T12:00:00+00:00",
+    "reason": "no expiry metadata was supplied",
+    "state": "UNKNOWN"
+   }
+  },
+  "state/timed/after": {
+   "result": {
+    "days_to_expiry": -2,
+    "evaluated_at": "2026-07-02T12:00:00+00:00",
+    "reason": "verified last trading time 2026-06-30T15:00:00+00:00 has passed",
+    "state": "EXPIRED"
+   }
+  },
+  "state/timed/after_close_on_day": {
+   "result": {
+    "days_to_expiry": 0,
+    "evaluated_at": "2026-06-30T16:00:00+00:00",
+    "reason": "verified last trading time 2026-06-30T15:00:00+00:00 has passed",
+    "state": "EXPIRED"
+   }
+  },
+  "state/timed/before": {
+   "result": {
+    "days_to_expiry": 29,
+    "evaluated_at": "2026-06-01T12:00:00+00:00",
+    "reason": "verified last trading time 2026-06-30T15:00:00+00:00 is still ahead",
+    "state": "ACTIVE"
+   }
+  },
+  "state/timed/on_day": {
+   "result": {
+    "days_to_expiry": 0,
+    "evaluated_at": "2026-06-30T12:00:00+00:00",
+    "reason": "verified last trading time 2026-06-30T15:00:00+00:00 is still ahead",
+    "state": "ACTIVE"
+   }
+  },
+  "state/unverified/after": {
+   "result": {
+    "days_to_expiry": null,
+    "evaluated_at": "2026-07-02T12:00:00+00:00",
+    "reason": "expiry date is UNVERIFIED from 'golden fixture', which cannot support a definitive expiration judgement",
+    "state": "UNKNOWN"
+   }
+  },
+  "state/unverified/after_close_on_day": {
+   "result": {
+    "days_to_expiry": null,
+    "evaluated_at": "2026-06-30T16:00:00+00:00",
+    "reason": "expiry date is UNVERIFIED from 'golden fixture', which cannot support a definitive expiration judgement",
+    "state": "UNKNOWN"
+   }
+  },
+  "state/unverified/before": {
+   "result": {
+    "days_to_expiry": null,
+    "evaluated_at": "2026-06-01T12:00:00+00:00",
+    "reason": "expiry date is UNVERIFIED from 'golden fixture', which cannot support a definitive expiration judgement",
+    "state": "UNKNOWN"
+   }
+  },
+  "state/unverified/on_day": {
+   "result": {
+    "days_to_expiry": null,
+    "evaluated_at": "2026-06-30T12:00:00+00:00",
+    "reason": "expiry date is UNVERIFIED from 'golden fixture', which cannot support a definitive expiration judgement",
+    "state": "UNKNOWN"
+   }
+  },
+  "tick_grid/105.037@0.05": {
+   "result": {
+    "nearest_lower": "105.000",
+    "nearest_upper": "105.050",
+    "on_grid": false,
+    "price": "105.037",
+    "remainder": "0.037",
+    "tick_size": "0.05"
+   }
+  },
+  "tick_grid/120.00@0.25": {
+   "result": {
+    "nearest_lower": "120.00",
+    "nearest_upper": "120.00",
+    "on_grid": true,
+    "price": "120.00",
+    "remainder": "0.00",
+    "tick_size": "0.25"
+   }
+  },
+  "tick_grid/120.10@0.25": {
+   "result": {
+    "nearest_lower": "120.00",
+    "nearest_upper": "120.25",
+    "on_grid": false,
+    "price": "120.10",
+    "remainder": "0.10",
+    "tick_size": "0.25"
+   }
+  },
+  "tick_grid/1@0": {
+   "message": "tick_size must be positive, got 0",
+   "raises": "ValueError"
+  },
+  "whatif/inverse": {
+   "message": "what-if simulation supports LINEAR valuation only, got INVERSE",
+   "raises": "UnsupportedValuationModelError"
+  },
+  "whatif/long_with_risk": {
+   "result": {
+    "account_equity": "100000",
+    "contracts": 3,
+    "direction": "LONG",
+    "entry_price": "120.00",
+    "initial_risk": "60",
+    "multiplier": "10",
+    "scenarios": [
+     {
+      "account_ratio": "-0.0015",
+      "gross_pnl": "-150.00",
+      "price": "115",
+      "r_multiple": "-2.50"
+     },
+     {
+      "account_ratio": "-0.0006",
+      "gross_pnl": "-60.00",
+      "price": "118.00",
+      "r_multiple": "-1.00"
+     },
+     {
+      "account_ratio": "0.00",
+      "gross_pnl": "0.00",
+      "price": "120.00",
+      "r_multiple": "0.00"
+     },
+     {
+      "account_ratio": "0.000525",
+      "gross_pnl": "52.50",
+      "price": "121.75",
+      "r_multiple": "0.875"
+     },
+     {
+      "account_ratio": "0.003",
+      "gross_pnl": "300.00",
+      "price": "130",
+      "r_multiple": "5.00"
+     }
+    ]
+   }
+  },
+  "whatif/short_without_risk": {
+   "result": {
+    "account_equity": "100000",
+    "contracts": 2,
+    "direction": "SHORT",
+    "entry_price": "120.00",
+    "initial_risk": null,
+    "multiplier": "10",
+    "scenarios": [
+     {
+      "account_ratio": "0.001",
+      "gross_pnl": "100.00",
+      "price": "115",
+      "r_multiple": null
+     },
+     {
+      "account_ratio": "0.0004",
+      "gross_pnl": "40.00",
+      "price": "118.00",
+      "r_multiple": null
+     },
+     {
+      "account_ratio": "0.00",
+      "gross_pnl": "0.00",
+      "price": "120.00",
+      "r_multiple": null
+     },
+     {
+      "account_ratio": "-0.00035",
+      "gross_pnl": "-35.00",
+      "price": "121.75",
+      "r_multiple": null
+     },
+     {
+      "account_ratio": "-0.002",
+      "gross_pnl": "-200.00",
+      "price": "130",
+      "r_multiple": null
+     }
+    ]
+   }
+  },
+  "whatif/unverified": {
+   "message": "what-if simulation for TEST_FIXTURE_FUT: value from 'golden fixture' is UNVERIFIED, not a verified current fact",
+   "raises": "UnverifiedFinancialFactError"
+  },
+  "whatif/zero_equity": {
+   "result": {
+    "account_equity": "0",
+    "contracts": 1,
+    "direction": "LONG",
+    "entry_price": "120.00",
+    "initial_risk": "0",
+    "multiplier": "10",
+    "scenarios": [
+     {
+      "account_ratio": null,
+      "gross_pnl": "-50.00",
+      "price": "115",
+      "r_multiple": null
+     },
+     {
+      "account_ratio": null,
+      "gross_pnl": "-20.00",
+      "price": "118.00",
+      "r_multiple": null
+     },
+     {
+      "account_ratio": null,
+      "gross_pnl": "0.00",
+      "price": "120.00",
+      "r_multiple": null
+     },
+     {
+      "account_ratio": null,
+      "gross_pnl": "17.50",
+      "price": "121.75",
+      "r_multiple": null
+     },
+     {
+      "account_ratio": null,
+      "gross_pnl": "100.00",
+      "price": "130",
+      "r_multiple": null
+     }
+    ]
+   }
+  }
+ }
+}

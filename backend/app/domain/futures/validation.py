@@ -241,6 +241,7 @@ def provenance_issues(contract: FuturesContract) -> tuple[ContractIssue, ...]:
         ("maintenance_margin", contract.maintenance_margin),
         ("settlement", contract.settlement),
         ("trading_session", contract.trading_session),
+        ("classification", contract.classification),
     ]
     if contract.expiry is not None:
         named.append(("expiry_date", contract.expiry.expiry_date))

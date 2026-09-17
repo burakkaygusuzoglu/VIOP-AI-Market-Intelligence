@@ -21,7 +21,7 @@ from app.domain.risk.margin import (
     MarginAssessment,
     RiskWarning,
     RiskWarningCode,
-    assess_margin,
+    assess_margin_for_product,
     effective_leverage,
     notional_exposure,
 )
@@ -30,9 +30,9 @@ from app.domain.risk.pnl import (
     PnLInputError,
     PnLResult,
     TradeCosts,
-    calculate_contract_pnl,
     calculate_pnl,
     gross_pnl,
+    pnl_for_product,
 )
 from app.domain.risk.reward import RiskReward, risk_reward, risk_reward_targets
 from app.domain.risk.sizing import (
@@ -44,14 +44,14 @@ from app.domain.risk.sizing import (
     RiskPolicy,
     SizingOutcome,
     TickFeasibility,
-    size_position,
+    size_for_product,
     stop_distance,
 )
 from app.domain.risk.whatif import (
     WhatIfResult,
     WhatIfScenario,
     simulate,
-    simulate_contract,
+    simulate_for_product,
 )
 
 __all__ = [
@@ -73,16 +73,16 @@ __all__ = [
     "TradeCosts",
     "WhatIfResult",
     "WhatIfScenario",
-    "assess_margin",
-    "calculate_contract_pnl",
+    "assess_margin_for_product",
     "calculate_pnl",
     "effective_leverage",
     "gross_pnl",
     "notional_exposure",
+    "pnl_for_product",
     "risk_reward",
     "risk_reward_targets",
     "simulate",
-    "simulate_contract",
-    "size_position",
+    "simulate_for_product",
+    "size_for_product",
     "stop_distance",
 ]

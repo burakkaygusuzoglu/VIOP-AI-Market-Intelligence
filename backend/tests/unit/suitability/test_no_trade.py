@@ -20,6 +20,7 @@ from app.domain.analysis.engine import analyse_multi_timeframe
 from app.domain.analysis.evidence import EvidenceDirection
 from app.domain.analysis.timeframes import ROLES_BROADEST_FIRST, TimeframeRole
 from app.domain.common.enums import Direction
+from app.domain.futures.risk import size_position
 from app.domain.market.quality import (
     DataQualityCode,
     DataQualityIssue,
@@ -28,14 +29,7 @@ from app.domain.market.quality import (
     DataQualityVerdict,
 )
 from app.domain.risk.reward import risk_reward
-from app.domain.risk.sizing import (
-    AccountState,
-    PositionSizing,
-    RiskMode,
-    RiskPolicy,
-    SizingOutcome,
-    size_position,
-)
+from app.domain.risk.sizing import AccountState, PositionSizing, RiskMode, RiskPolicy, SizingOutcome
 from app.domain.suitability import no_trade as no_trade_module
 from app.domain.suitability.no_trade import (
     DeferredNoTradeReason,

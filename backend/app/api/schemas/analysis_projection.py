@@ -49,6 +49,7 @@ from app.application.analysis.orchestrator import AnalysisOutcome, TimeframeOutc
 from app.domain.analysis.evidence import EvidenceItem
 from app.domain.analysis.scenarios import Scenario
 from app.domain.futures.contract import FuturesContract
+from app.domain.futures.policy import FuturesProductPolicy
 from app.domain.risk.sizing import PositionSizing
 from app.domain.structure.zones import Zone
 
@@ -507,6 +508,7 @@ def _scenario(item: Scenario) -> ScenarioResponse:
 def _contract(contract: FuturesContract | None) -> ContractResponse | None:
     if contract is None:
         return None
+    classification = FuturesProductPolicy(contract).instrument.asset_class
     return ContractResponse(
         symbol=contract.symbol,
         verified=contract.multiplier.is_authoritative and contract.tick_size.is_authoritative,
@@ -514,6 +516,8 @@ def _contract(contract: FuturesContract | None) -> ContractResponse | None:
         multiplier_status=contract.multiplier.status.value,
         tick_size=str(contract.tick_size.value),
         tick_size_status=contract.tick_size.status.value,
+        asset_class=classification.value.value,
+        asset_class_status=classification.status.value,
     )
 
 

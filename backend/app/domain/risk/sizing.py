@@ -18,6 +18,14 @@ engine never merges an unknown into a known one.** If risk sizing permits five
 contracts and the margin is unverified, the answer is not "five". It is "risk
 allows five, margin feasibility unknown, final allowance undetermined". Saying
 five would present half an analysis as a whole one.
+
+**Product-agnostic since Phase 8.5.** This module reasons about a risk budget,
+a stop, a loss per unit and a margin constraint; it no longer knows what a
+futures contract is. Everything product-specific - the point value, the price
+grid, the margin per unit, whether quantity is whole units, and what a unit is
+called - arrives through a ``ProductPolicy``. ``app.domain.futures.risk`` binds
+a ``FuturesContract`` to this engine, and an import contract forbids this
+package from importing ``app.domain.futures`` at all.
 """
 
 from __future__ import annotations
@@ -28,8 +36,25 @@ from enum import StrEnum, unique
 
 from app.domain.common.arithmetic import as_percent, floor_divide, safe_ratio
 from app.domain.common.enums import Direction
-from app.domain.futures.contract import FuturesContract
-from app.domain.futures.validation import check_tick_grid, require_calculable
+from app.domain.instrument.policy import (
+    MarginFeasibility,
+    ProductPolicy,
+    TickFeasibility,
+    require_product_calculable,
+)
+
+__all__ = [
+    "AccountState",
+    "MarginFeasibility",
+    "PositionSizing",
+    "RiskInputError",
+    "RiskMode",
+    "RiskPolicy",
+    "SizingOutcome",
+    "TickFeasibility",
+    "size_for_product",
+    "stop_distance",
+]
 
 
 class RiskInputError(ValueError):
@@ -65,35 +90,6 @@ class SizingOutcome(StrEnum):
     INVALID = "INVALID"
     """The request cannot be sized: wrong stop orientation, zero stop distance,
     non-positive account, unverified multiplier."""
-
-
-@unique
-class TickFeasibility(StrEnum):
-    """How much is known about whether the levels are actually executable."""
-
-    ON_GRID = "ON_GRID"
-    """Tick size is verified and both entry and stop sit on the grid."""
-
-    OFF_GRID = "OFF_GRID"
-    """Tick size is verified and a level does not sit on the grid."""
-
-    UNVERIFIED = "UNVERIFIED"
-    """A tick size exists but is not a verified current fact."""
-
-    MISSING = "MISSING"
-    """No tick size at all."""
-
-
-@unique
-class MarginFeasibility(StrEnum):
-    """How much is known about whether the margin permits the position."""
-
-    KNOWN = "KNOWN"
-    UNVERIFIED = "UNVERIFIED"
-    """A margin figure exists but is not a verified current fact."""
-
-    MISSING = "MISSING"
-    """No margin figure at all."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -267,11 +263,11 @@ def stop_distance(direction: Direction, entry: Decimal, stop: Decimal) -> Decima
     return None
 
 
-def size_position(
+def size_for_product(
     direction: Direction,
     entry_price: Decimal,
     stop_price: Decimal,
-    contract: FuturesContract,
+    product: ProductPolicy,
     account: AccountState,
     policy: RiskPolicy,
 ) -> PositionSizing:
@@ -279,19 +275,21 @@ def size_position(
 
     Order of work:
 
-    1. Validate the request - direction, prices, stop orientation, equity, and
-       a **verified** multiplier. Money arithmetic on an unverified multiplier
+    1. Validate the request - the product is implemented, sized in whole units
+       and calculable; direction, prices, stop orientation, equity; and a
+       **verified** point value. Money arithmetic on an unverified point value
        is refused, not caveated.
     2. ``risk_amount`` from the policy.
-    3. ``loss_per_contract = stop_distance × multiplier``.
-    4. ``maximum_by_risk = floor(risk_amount / loss_per_contract)``. Zero is a
+    3. ``loss_per_unit = stop_distance x point_value``.
+    4. ``maximum_by_risk = floor(risk_amount / loss_per_unit)``. Zero is a
        legitimate, mandatory answer.
-    5. ``maximum_by_margin = floor(free_margin / initial_margin)``, **only** if
+    5. ``maximum_by_margin = floor(free_margin / margin_per_unit)``, **only** if
        the margin is a verified current fact.
     6. The final allowance is the minimum of whatever is actually known.
     """
-    contract.requires_linear_valuation("position sizing")
-    require_calculable(contract, "position sizing")
+    require_product_calculable(product, "position sizing")
+    words = product.vocabulary
+    symbol = product.instrument.symbol
 
     if direction not in (Direction.LONG, Direction.SHORT):
         return _invalid(f"{direction.value} is not a tradeable direction")
@@ -302,12 +300,13 @@ def size_position(
     if account.equity <= 0:
         return _invalid(f"account equity must be positive, got {account.equity}")
 
-    multiplier = contract.authoritative_multiplier()
-    if multiplier is None:
+    point = product.point_value()
+    if not point.is_authoritative:
         return _invalid(
-            f"multiplier for {contract.symbol} is {contract.multiplier.status.value}; "
-            "position size cannot be computed from an unverified contract multiplier"
+            f"{words.point_value} for {symbol} is {point.status.value}; "
+            f"position size cannot be computed from an unverified {words.point_value_qualified}"
         )
+    point_value = point.value
 
     distance = stop_distance(direction, entry_price, stop_price)
     if distance is None:
@@ -318,19 +317,20 @@ def size_position(
         )
 
     risk_amount = policy.risk_amount(account.equity)
-    loss_per_contract = distance * multiplier
+    loss_per_contract = distance * point_value
     maximum_by_risk = floor_divide(risk_amount, loss_per_contract)
     if maximum_by_risk is None:
-        return _invalid("loss per contract is zero, so risk sizing is undefined")
+        return _invalid(f"loss per {words.unit} is zero, so risk sizing is undefined")
 
-    tick_state, tick_detail = _tick_feasibility(contract, entry_price, stop_price)
+    grid = product.price_increment_check(entry_price, stop_price)
+    tick_state, tick_detail = grid.feasibility, grid.detail
     if tick_state is TickFeasibility.OFF_GRID:
         return _invalid(
             f"{tick_detail}; the levels are preserved and were not rounded to the grid",
             tick=tick_state,
         )
 
-    feasibility, margin_capacity = _margin_capacity(contract, account)
+    feasibility, margin_capacity = _margin_capacity(product, account)
     # Reported as ``None`` unless genuinely known, so an unknown constraint can
     # never be mistaken for a satisfied one.
     maximum_by_margin = margin_capacity if feasibility is MarginFeasibility.KNOWN else None
@@ -339,7 +339,7 @@ def size_position(
         return PositionSizing(
             outcome=SizingOutcome.NOT_PERMITTED,
             reason=(
-                f"one contract would risk {loss_per_contract}, which exceeds the configured "
+                f"one {words.unit} would risk {loss_per_contract}, which exceeds the configured "
                 f"risk of {risk_amount}; no position is permitted"
             ),
             risk_amount=risk_amount,
@@ -365,7 +365,7 @@ def size_position(
         return PositionSizing(
             outcome=SizingOutcome.UNDETERMINED,
             reason=(
-                f"risk sizing permits {maximum_by_risk} contract(s), but "
+                f"risk sizing permits {maximum_by_risk} {words.unit_counted}, but "
                 + " and ".join(blockers)
                 + ", so the final allowance cannot be determined"
             ),
@@ -386,7 +386,9 @@ def size_position(
     allowed = min(candidates)
 
     if allowed <= 0:
-        binding = _binding_constraint(maximum_by_risk, margin_capacity, policy.max_contracts)
+        binding = _binding_constraint(
+            maximum_by_risk, margin_capacity, policy.max_contracts, words.unit
+        )
         return PositionSizing(
             outcome=SizingOutcome.NOT_PERMITTED,
             reason=f"no position is permitted; the binding constraint is {binding}",
@@ -401,10 +403,12 @@ def size_position(
             policy_limit=policy.max_contracts,
         )
 
-    binding = _binding_constraint(maximum_by_risk, margin_capacity, policy.max_contracts)
+    binding = _binding_constraint(
+        maximum_by_risk, margin_capacity, policy.max_contracts, words.unit
+    )
     return PositionSizing(
         outcome=SizingOutcome.ALLOWED,
-        reason=f"{allowed} contract(s) permitted; the binding constraint is {binding}",
+        reason=f"{allowed} {words.unit_counted} permitted; the binding constraint is {binding}",
         risk_amount=risk_amount,
         stop_distance=distance,
         loss_per_contract=loss_per_contract,
@@ -418,64 +422,26 @@ def size_position(
 
 
 def _margin_capacity(
-    contract: FuturesContract, account: AccountState
+    product: ProductPolicy, account: AccountState
 ) -> tuple[MarginFeasibility, int]:
-    """Contracts the free margin supports, and how well that is known.
+    """Units the free margin supports, and how well that is known.
 
     The integer is meaningless unless the feasibility is ``KNOWN``; the caller
     reports ``None`` in every other case rather than letting a placeholder zero
     read as a real constraint.
     """
-    if contract.initial_margin is None:
-        return MarginFeasibility.MISSING, 0
-    margin = contract.authoritative_initial_margin()
-    if margin is None:
-        return MarginFeasibility.UNVERIFIED, 0
-    capacity = floor_divide(account.available_for_new_positions, margin)
+    requirement = product.margin_requirement()
+    if requirement.per_unit is None:
+        return requirement.feasibility, 0
+    capacity = floor_divide(account.available_for_new_positions, requirement.per_unit)
     return MarginFeasibility.KNOWN, 0 if capacity is None else max(capacity, 0)
 
 
-def _binding_constraint(by_risk: int, by_margin: int, cap: int | None) -> str:
+def _binding_constraint(by_risk: int, by_margin: int, cap: int | None, unit: str) -> str:
     options: list[tuple[int, str]] = [(by_risk, "risk"), (by_margin, "margin")]
     if cap is not None:
-        options.append((cap, "the configured contract cap"))
+        options.append((cap, f"the configured {unit} cap"))
     return min(options, key=lambda item: item[0])[1]
-
-
-def _tick_feasibility(
-    contract: FuturesContract, entry_price: Decimal, stop_price: Decimal
-) -> tuple[TickFeasibility, str]:
-    """Whether the proposed levels are actually executable on this contract.
-
-    A stop that cannot be placed where the risk calculation assumed it is not a
-    stop. When the tick size is verified, an off-grid entry or stop makes the
-    whole sizing answer fictional, so it is refused - and the supplied prices
-    are returned untouched, never snapped. When the tick size is missing or
-    unverified the arithmetic is still sound but execution feasibility is
-    unknown, which is reported rather than assumed away.
-    """
-    tick = contract.authoritative_tick_size()
-    if tick is None:
-        if contract.tick_size.is_authoritative:
-            return TickFeasibility.MISSING, "no tick size is available"
-        return (
-            TickFeasibility.UNVERIFIED,
-            f"the tick size is {contract.tick_size.status.value}, so it cannot be "
-            "confirmed that these levels are executable",
-        )
-
-    offenders = [
-        (name, price)
-        for name, price in (("entry", entry_price), ("stop", stop_price))
-        if not check_tick_grid(price, tick).on_grid
-    ]
-    if offenders:
-        detail = ", ".join(f"{name} {price}" for name, price in offenders)
-        return (
-            TickFeasibility.OFF_GRID,
-            f"{detail} is not a whole number of {tick} ticks",
-        )
-    return TickFeasibility.ON_GRID, f"entry and stop sit on the {tick} tick grid"
 
 
 def _invalid(reason: str, tick: TickFeasibility = TickFeasibility.MISSING) -> PositionSizing:

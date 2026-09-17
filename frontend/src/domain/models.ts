@@ -471,6 +471,9 @@ export interface ContractInfo {
   readonly multiplierStatus: string | null;
   readonly tickSize: string | null;
   readonly tickSizeStatus: string | null;
+  /** Asset class of the contract record (Phase 8.5), never inferred from a symbol. */
+  readonly assetClass?: string | null;
+  readonly assetClassStatus?: string | null;
 }
 
 /**

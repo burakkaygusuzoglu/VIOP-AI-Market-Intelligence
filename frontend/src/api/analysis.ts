@@ -158,6 +158,10 @@ const contractSchema = z.object({
   multiplier_status: z.string().nullable().default(null),
   tick_size: z.string().nullable().default(null),
   tick_size_status: z.string().nullable().default(null),
+  // Phase 8.5, additive: the classification of the contract record, with its
+  // provenance. Defaults keep a Phase 8 response valid.
+  asset_class: z.string().nullable().default(null),
+  asset_class_status: z.string().nullable().default(null),
 });
 
 const riskSchema = z.object({

@@ -39,14 +39,8 @@ from app.domain.analysis.quality import QualityConfig, QualityWeights, score_set
 from app.domain.analysis.scenarios import ScenarioState
 from app.domain.analysis.timeframes import ROLES_BROADEST_FIRST, TimeframeRole
 from app.domain.common.enums import Direction
-from app.domain.risk.margin import assess_margin
-from app.domain.risk.sizing import (
-    AccountState,
-    PositionSizing,
-    RiskMode,
-    RiskPolicy,
-    size_position,
-)
+from app.domain.futures.risk import assess_margin, size_position
+from app.domain.risk.sizing import AccountState, PositionSizing, RiskMode, RiskPolicy
 from app.domain.suitability.no_trade import assess_no_trade
 from tests.factories_analysis import BEARISH_DRIFT, BULLISH_DRIFT, FLAT_DRIFT, market_view
 from tests.factories_futures import contract, verified

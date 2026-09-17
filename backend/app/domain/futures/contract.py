@@ -38,6 +38,7 @@ from enum import StrEnum, unique
 
 from app.domain.common.identity import canonical_symbol, same_instrument
 from app.domain.common.verification import VerifiedValue
+from app.domain.instrument.asset_class import AssetClass
 
 
 @unique
@@ -186,10 +187,27 @@ class FuturesContract:
     settlement: VerifiedValue[SettlementType] | None = None
     trading_session: VerifiedValue[str] | None = None
     valuation: ValuationModel = ValuationModel.LINEAR
+    classification: VerifiedValue[AssetClass] | None = None
+    """What product class this record is, established by *its own* source.
+
+    Added in Phase 8.5 and deliberately independent of every numeric fact above.
+    A verified multiplier says what one point is worth; it does not say who
+    established that the instrument is a future. A source that publishes the
+    product class - an exchange's product list, say - is recorded here with its
+    own status, and only that source can make the classification authoritative.
+
+    ``None`` is the normal state today: no record carries a classification
+    source, so the classification is reported ``UNVERIFIED`` however well the
+    multiplier and tick size are verified. When present it must be ``FUTURES``;
+    a futures record cannot be classified as anything else."""
 
     def __post_init__(self) -> None:
         if not self.symbol.strip():
             raise ContractValidationError("symbol must not be empty")
+        if self.classification is not None and self.classification.value is not AssetClass.FUTURES:
+            raise ContractValidationError(
+                f"a futures contract record cannot be classified as {self.classification.value!r}"
+            )
 
         _require_positive(self.multiplier.value, "multiplier")
         _require_positive(self.tick_size.value, "tick_size")

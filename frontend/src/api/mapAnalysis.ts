@@ -358,6 +358,8 @@ export function mapAnalysis(dto: AnalysisResponseDto): AnalysisReadModel {
             multiplierStatus: dto.risk.contract.multiplier_status,
             tickSize: dto.risk.contract.tick_size,
             tickSizeStatus: dto.risk.contract.tick_size_status,
+            assetClass: dto.risk.contract.asset_class,
+            assetClassStatus: dto.risk.contract.asset_class_status,
           }
         : null,
     },

@@ -213,6 +213,7 @@ source_modules = [
     "app.domain.futures",
     "app.domain.market",
     "app.domain.common",
+    "app.domain.instrument",
 ]
 forbidden_modules = ["app.domain.analysis"]
 
@@ -245,8 +246,64 @@ source_modules = [
     "app.domain.common",
     "app.domain.risk",
     "app.domain.analysis",
+    "app.domain.instrument",
 ]
 forbidden_modules = ["app.domain.suitability"]
+
+[[tool.importlinter.contracts]]
+# Phase 8.5. The risk engine reasons about a budget, a stop, a loss per unit and
+# a margin constraint - for any product. Everything product-specific arrives
+# through a `ProductPolicy`. If this package could import the futures domain, the
+# first "just read the multiplier here" would quietly make every future asset
+# class a futures-shaped special case. The dependency runs futures -> risk, the
+# way a plugin depends on its core.
+name = "The generic risk engine depends on no product implementation"
+type = "forbidden"
+source_modules = ["app.domain.risk"]
+forbidden_modules = ["app.domain.futures"]
+
+[[tool.importlinter.contracts]]
+# Phase 8.5. Instrument identity and the product-policy boundary are the bottom
+# of the product stack: every product and every generic engine depends on them,
+# so they may depend on nothing but `common`. A boundary that imported a product
+# would stop being a boundary.
+name = "The instrument boundary depends only on common vocabulary"
+type = "forbidden"
+source_modules = ["app.domain.instrument"]
+forbidden_modules = [
+    "app.domain.futures",
+    "app.domain.risk",
+    "app.domain.analysis",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.market",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+
+[[tool.importlinter.contracts]]
+# Phase 8.5. OHLCV validation, indicators, structure, multi-timeframe evidence,
+# suitability, synthesis and vision are the same mathematics for every market.
+# None of them may reach a product policy or a product's money entry points: a
+# market-intelligence reading that changed with the asset class would no longer
+# be the same engine across markets. (Optional basis and open-interest evidence
+# still arrive as plain futures readings, as they have since Phase 4.)
+name = "The analysis core does not depend on product policies"
+type = "forbidden"
+source_modules = [
+    "app.domain.market",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+    "app.application.synthesis",
+    "app.application.vision",
+    "app.application.presentation",
+]
+forbidden_modules = ["app.domain.futures.policy", "app.domain.futures.risk"]
 
 [[tool.importlinter.contracts]]
 # Phase 3. Futures contract facts are inputs to analysis, never outputs of it.

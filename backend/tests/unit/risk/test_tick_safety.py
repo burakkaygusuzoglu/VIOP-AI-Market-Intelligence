@@ -16,7 +16,7 @@ import pytest
 
 from app.domain.common.enums import Direction
 from app.domain.futures.contract import ContractValidationError
-from app.domain.risk.pnl import calculate_contract_pnl
+from app.domain.futures.risk import calculate_contract_pnl, simulate_contract, size_position
 from app.domain.risk.reward import risk_reward
 from app.domain.risk.sizing import (
     AccountState,
@@ -24,9 +24,7 @@ from app.domain.risk.sizing import (
     RiskPolicy,
     SizingOutcome,
     TickFeasibility,
-    size_position,
 )
-from app.domain.risk.whatif import simulate_contract
 from tests.factories_futures import contract, unverified, verified
 
 POLICY = RiskPolicy(mode=RiskMode.FIXED, fixed_risk=Decimal("500"))
@@ -193,7 +191,7 @@ def test_a_contradictory_tick_value_blocks_what_if() -> None:
 
 @pytest.mark.unit
 def test_a_contradictory_tick_value_blocks_the_margin_panel() -> None:
-    from app.domain.risk.margin import assess_margin
+    from app.domain.futures.risk import assess_margin
 
     with pytest.raises(ContractValidationError, match="tick_value"):
         assess_margin(BROKEN, ACCOUNT, Decimal("105"), 1, POLICY)

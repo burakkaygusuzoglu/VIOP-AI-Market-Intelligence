@@ -10,11 +10,11 @@ from decimal import Decimal
 import pytest
 
 from app.domain.common.enums import Direction
+from app.domain.futures.risk import calculate_contract_pnl
 from app.domain.risk.pnl import (
     CostCompleteness,
     PnLInputError,
     TradeCosts,
-    calculate_contract_pnl,
     calculate_pnl,
     gross_pnl,
 )

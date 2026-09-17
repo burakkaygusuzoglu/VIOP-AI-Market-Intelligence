@@ -10,8 +10,9 @@ from decimal import Decimal
 import pytest
 
 from app.domain.common.enums import Direction
+from app.domain.futures.risk import simulate_contract
 from app.domain.risk.reward import risk_reward, risk_reward_targets
-from app.domain.risk.whatif import simulate, simulate_contract
+from app.domain.risk.whatif import simulate
 from tests.factories_futures import contract, unverified, verified
 
 # ----------------------------------------------------------------------

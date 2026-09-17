@@ -321,7 +321,7 @@ def test_unsupported_valuation_is_refused_rather_than_approximated(
     model: ValuationModel,
 ) -> None:
     from app.domain.common.enums import Direction
-    from app.domain.risk.pnl import calculate_contract_pnl
+    from app.domain.futures.risk import calculate_contract_pnl
 
     subject = contract(valuation=model)
     with pytest.raises(UnsupportedValuationModelError):

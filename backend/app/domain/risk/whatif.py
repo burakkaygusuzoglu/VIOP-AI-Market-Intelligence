@@ -12,6 +12,10 @@ engine quietly opinionated about which adverse moves matter.
 **No trade is placed and no position is created.** This is arithmetic on
 hypothetical prices. Master spec section 120 disables real execution, and paper
 trading is Phase 9; nothing here writes state anywhere.
+
+**Product-agnostic since Phase 8.5.** ``simulate_for_product`` reads the verified
+point value through a ``ProductPolicy``;
+``app.domain.futures.risk.simulate_contract`` binds a ``FuturesContract``.
 """
 
 from __future__ import annotations
@@ -21,8 +25,7 @@ from decimal import Decimal
 
 from app.domain.common.arithmetic import as_percent
 from app.domain.common.enums import Direction
-from app.domain.futures.contract import FuturesContract
-from app.domain.futures.validation import require_calculable
+from app.domain.instrument.policy import ProductPolicy, require_product_calculable
 from app.domain.risk.pnl import gross_pnl
 
 
@@ -89,8 +92,8 @@ def simulate(
     )
 
 
-def simulate_contract(
-    contract: FuturesContract,
+def simulate_for_product(
+    product: ProductPolicy,
     direction: Direction,
     entry_price: Decimal,
     contracts: int,
@@ -98,16 +101,15 @@ def simulate_contract(
     prices: tuple[Decimal, ...],
     initial_risk: Decimal | None = None,
 ) -> WhatIfResult:
-    """Simulate using the contract's **verified** multiplier.
+    """Simulate using the product's **verified** point value.
 
-    Refuses on an unverified multiplier for the same reason ``calculate_pnl``
+    Refuses on an unverified point value for the same reason ``calculate_pnl``
     does: a what-if built on a guessed multiplier looks exactly like one built
     on a real fact.
     """
-    contract.requires_linear_valuation("what-if simulation")
-    require_calculable(contract, "what-if simulation")
-    multiplier = contract.multiplier.require_authoritative(
-        f"what-if simulation for {contract.symbol}"
+    require_product_calculable(product, "what-if simulation")
+    multiplier = product.point_value().require_authoritative(
+        f"what-if simulation for {product.instrument.symbol}"
     )
     return simulate(
         direction, entry_price, multiplier, contracts, account_equity, prices, initial_risk

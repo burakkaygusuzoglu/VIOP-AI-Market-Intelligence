@@ -32,6 +32,12 @@ const OUTCOME_MEANING: Record<SizingOutcome, string> = {
   INVALID: 'Risk hesabı için verilen girdiler tutarsız.',
 };
 
+/** Only the asset class that is implemented has a label; any other value is
+ * shown raw rather than translated into something that sounds supported. */
+const ASSET_CLASS_LABEL: Record<string, string> = {
+  FUTURES: 'Vadeli işlem sözleşmesi',
+};
+
 const OUTCOME_TONE: Record<SizingOutcome, string> = {
   ALLOWED: 'ok',
   NOT_PERMITTED: 'blocked',
@@ -94,6 +100,20 @@ export function RiskSummaryCard({ risk, showRaw = false }: RiskSummaryCardProps)
         <p className="risk__unverified">
           Sözleşme bilgisi doğrulanmadı ({risk.contract.multiplierStatus ?? 'bilinmiyor'}); çarpana
           bağlı hesaplamalar yapılmaz.
+        </p>
+      )}
+
+      {/* Phase 8.5. Named only when the trusted contract record says so, and
+          always with its provenance: a classification is a fact like any
+          other, and an unverified one is labelled as such. Only implemented
+          asset classes can reach this line - nothing else has a record. */}
+      {risk.contract?.assetClass && (
+        <p className="risk__asset-class">
+          Varlık sınıfı: {ASSET_CLASS_LABEL[risk.contract.assetClass] ?? risk.contract.assetClass}
+          {showRaw && ` (${risk.contract.assetClassStatus ?? 'bilinmiyor'})`}
+          {!showRaw &&
+            risk.contract.assetClassStatus !== 'VERIFIED_CURRENT_FACT' &&
+            ' (doğrulanmadı)'}
         </p>
       )}
 

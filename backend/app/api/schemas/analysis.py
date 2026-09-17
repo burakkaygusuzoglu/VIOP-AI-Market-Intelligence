@@ -380,6 +380,15 @@ class ContractResponse(BaseModel):
     multiplier_status: str | None = None
     tick_size: str | None = None
     tick_size_status: str | None = None
+    asset_class: str | None = None
+    """Phase 8.5, additive. The asset class of the *contract record* the
+    trusted provider returned - never derived from the symbol the user typed.
+    Present only when a contract exists; absent otherwise, because an analysis
+    of uploaded candles has no established asset class."""
+
+    asset_class_status: str | None = None
+    """How well that classification is known. Authoritative only when the
+    record's required specification facts are."""
 
 
 class RiskResponse(BaseModel):

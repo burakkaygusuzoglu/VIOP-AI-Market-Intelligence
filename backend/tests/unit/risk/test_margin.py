@@ -10,19 +10,14 @@ from decimal import Decimal
 import pytest
 
 from app.domain.common.enums import Direction
-from app.domain.risk.margin import (
-    RiskWarningCode,
-    assess_margin,
-    effective_leverage,
-    notional_exposure,
-)
+from app.domain.futures.risk import assess_margin, size_position
+from app.domain.risk.margin import RiskWarningCode, effective_leverage, notional_exposure
 from app.domain.risk.sizing import (
     AccountState,
     MarginFeasibility,
     RiskMode,
     RiskPolicy,
     SizingOutcome,
-    size_position,
 )
 from tests.factories_futures import contract, unverified, verified
 

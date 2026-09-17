@@ -15,6 +15,11 @@ therefore never invents a commission. When no costs are supplied, ``net`` is
 would tell a user their scalp was profitable when the round trip may not have
 been. Slippage is likewise an explicit modelling input, never a number the
 engine decides on the user's behalf.
+
+**Product-agnostic since Phase 8.5.** ``gross_pnl`` and ``calculate_pnl`` never
+knew what a contract was - they take a point value. ``pnl_for_product`` reads
+that point value, verified, through a ``ProductPolicy``;
+``app.domain.futures.risk.calculate_contract_pnl`` binds a ``FuturesContract``.
 """
 
 from __future__ import annotations
@@ -25,8 +30,7 @@ from enum import StrEnum, unique
 
 from app.domain.common.arithmetic import as_percent, normalise_zero, safe_ratio
 from app.domain.common.enums import Direction
-from app.domain.futures.contract import FuturesContract
-from app.domain.futures.validation import require_calculable
+from app.domain.instrument.policy import ProductPolicy, require_product_calculable
 
 
 class PnLInputError(ValueError):
@@ -241,24 +245,23 @@ def calculate_pnl(
     )
 
 
-def calculate_contract_pnl(
-    contract: FuturesContract,
+def pnl_for_product(
+    product: ProductPolicy,
     direction: Direction,
     entry_price: Decimal,
     exit_price: Decimal,
     contracts: int,
     costs: TradeCosts | None = None,
 ) -> PnLResult:
-    """P&L using the contract's **verified** multiplier.
+    """P&L using the product's **verified** point value.
 
-    Refuses when the multiplier is not a verified current fact. Computing money
+    Refuses when the point value is not a verified current fact. Computing money
     from an unverified multiplier produces a number that looks exactly like a
     real one, which is the failure mode section 118 exists to prevent - so the
     call fails loudly instead.
     """
-    contract.requires_linear_valuation("P&L calculation")
-    require_calculable(contract, "P&L calculation")
-    multiplier = contract.multiplier.require_authoritative(f"P&L for {contract.symbol}")
+    require_product_calculable(product, "P&L calculation")
+    multiplier = product.point_value().require_authoritative(f"P&L for {product.instrument.symbol}")
     return calculate_pnl(direction, entry_price, exit_price, multiplier, contracts, costs)
 
 

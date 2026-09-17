@@ -32,7 +32,10 @@ one package is allowed to join them:
   market ─▶ technical ─▶ structure ─┐
                                     ├─▶ analysis ─┐
                         futures ────┘             ├─▶ suitability
-                        futures ─▶ risk ──────────┘      (NO TRADE veto)
+      instrument ─▶ risk ───────────────────────┘      (NO TRADE veto)
+          │          ▲
+          └───▶ futures.policy / futures.risk   (Phase 8.5: the product plugs
+                                                 into the core, not the reverse)
 ```
 
 `analysis` may never import `risk`: §43 separates a technical score, which must
@@ -106,8 +109,23 @@ Declared as import-linter contracts in `backend/pyproject.toml` and executed by
     `app.application.synthesis` and every port, so 7B's adapter is the only
     place a client type can appear. *(Phase 7A)*
 15. **API routes and schemas never reach into adapters or SQLAlchemy.**
+16. **The analysis orchestrator computes nothing itself** —
+    `app.application.analysis` may not import an indicator module, the margin,
+    P&L or what-if engines, an adapter or the API. *(Phase 8; listed here in the
+    Phase 8.5 closeout, which found this list one item short of the contracts.)*
+17. **The generic risk engine depends on no product implementation** —
+    `app.domain.risk` may not import `app.domain.futures`. Every product fact
+    arrives through a `ProductPolicy`. *(Phase 8.5)*
+18. **The instrument boundary depends only on common vocabulary** —
+    `app.domain.instrument` imports nothing but `app.domain.common`. *(Phase 8.5)*
+19. **The analysis core does not depend on product policies** — market,
+    technical, structure, analysis, suitability, synthesis, vision and the
+    presentation layer may not import `app.domain.futures.policy` or
+    `app.domain.futures.risk`. *(Phase 8.5)*
 
-These are verified to actually fail when violated; the check is not decorative.
+Nineteen contracts; this list and `backend/pyproject.toml` now have the same
+count. These are verified to actually fail when violated; the check is not
+decorative.
 
 ### Import direction is necessary but not sufficient
 
@@ -974,6 +992,153 @@ Phase 5 engine and renders its strings verbatim. It formats no number of its own
 interpolation in the module — so a value it never renders is a value it cannot
 get wrong. The API assembles it last and never reads it back, and a whole-response
 diff with the block present and absent proves every other field is identical.
+
+## The multi-asset boundary (Phase 8.5)
+
+VİOP futures is the first fully modelled market, not the shape of the system.
+Phase 8.5 separated the two without adding a second market.
+
+    Market-intelligence core   market · technical · structure · analysis ·
+                               suitability · synthesis · vision · presentation
+            │                  (asset-agnostic; contract 18)
+            ▼
+    Instrument identity        InstrumentId: symbol, asset class, quote
+                               currency - each claim with its provenance
+            ▼
+    Product policy             ProductPolicy (one Protocol)
+            ▼
+    Product implementation     FuturesProductPolicy - the only one
+
+**What moved, and what did not.** The Phase 3 risk engine mixed two things: the
+*reasoning* of sizing, margin, P&L and what-if - a risk budget, a stop on the
+correct side, a loss per unit, floor to whole units, never merge an unknown
+constraint into a known one - and the *facts* it read off a `FuturesContract`.
+The reasoning stayed in `app.domain.risk`, unchanged line for line. The facts
+now arrive through `ProductPolicy`, and the four futures entry points
+(`size_position`, `assess_margin`, `calculate_contract_pnl`, `simulate_contract`)
+moved to `app.domain.futures.risk` with identical signatures, each wrapping the
+contract in `FuturesProductPolicy` and calling the generic engine. No
+calculation was rewritten and no second futures calculator exists.
+
+**One policy, not five.** `ProductPolicy` is the exact list the four money
+engines read from a contract today: point value (the multiplier), price-increment
+feasibility (the tick grid), margin per unit, calculability (linear valuation and
+self-consistent metadata), capabilities, and the product's unit vocabulary. A
+`QuantityPolicy`, `MarginPolicy` and `FeePolicy` would each have had one
+implementation and one caller; the boundary can be split when a second product
+shows two of those varying independently.
+
+**Behaviour is proven unchanged, not assumed.** Before any file moved, 99
+domain cases and 10 Phase 8 API responses were recorded from the committed
+Phase 8 code into `tests/unit/multi_asset/golden_phase8_baseline.json`, and the
+recording was re-run to confirm it is deterministic. `test_futures_parity.py`
+requires every case to match exactly: sizing outcomes, counts, reasons and
+binding constraints; margin panels and warnings; P&L gross/net/bounds; what-if;
+risk/reward; contract issues and state; and the refusals, by type and message.
+API responses are compared by digest after removing only `generated_at` and the
+two keys Phase 8.5 added.
+
+**An enum value is not an implementation.** `AssetClass` names `FUTURES`,
+`EQUITY`, `CRYPTO_SPOT`, `CRYPTO_PERPETUAL` and `FX`. `IMPLEMENTATION`, a
+read-only mapping, is the single declaration of which work, and only `FUTURES`
+does. Every generic money engine runs `require_product_calculable` first:
+implemented class, whole-unit quantity established, then the product's own
+calculability. A product claiming an unimplemented class is refused before any
+of its facts are read - nothing falls back to futures arithmetic.
+
+**Asset-class provenance is not product calculability.** Two different
+questions, answered by different sources:
+
+* *Classification* - "what product class is this instrument?" - is established
+  only by a source that says so, recorded as `FuturesContract.classification`
+  with its own status.
+* *Calculability* - "are the facts this calculation needs authoritative?" - is
+  decided by the multiplier, tick size and margin, exactly as in Phase 3.
+
+Neither implies the other. A trusted classification is not downgraded because a
+multiplier, tick size or margin is missing or unverified; those make the
+dependent calculations unavailable and nothing else. Verified numeric facts do
+not establish a class: with no classification source, a futures record reports
+`UNVERIFIED`. That is the normal state today, because no contract record carries
+a classification source, and nothing was fabricated to make it look otherwise.
+
+A Phase 8.5 draft did couple them - the classification took the status of the
+multiplier and tick size - and the human-review closeout removed it.
+`InstrumentId.user_declared` is always `UNVERIFIED`; `quote_currency` is `None`
+because no record carries a currency, and it is never inferred.
+
+**Which policy is used, and who decides.** A product policy is selected on one
+server-owned path: the request symbol is looked up in the composed
+`ContractMetadataProvider`; a returned record is wrapped in the policy for its
+type; no record means no policy, no classification and no size. The request
+schema has no field for an asset class, product type, exchange or locale
+(`extra="forbid"` answers 422), and a near-miss or future-looking symbol finds
+nothing. Policy selection follows the *record type*, not the classification's
+verification status - gating existing VİOP calculations on a verified
+classification would change Phase 8 outputs, and that is a decision for human
+review rather than for a closeout.
+
+**Capability is not availability.** Three ideas, kept in three places:
+
+| Idea | Question | Where |
+| --- | --- | --- |
+| Product capability | Can this product *type* have margin, an expiry, funding? | `ProductCapabilities` (`SUPPORTED` / `UNSUPPORTED` / `UNKNOWN`) |
+| Metadata availability | Do we have the fact at all? | `MarginFeasibility.MISSING`, `TickFeasibility.MISSING`, absent expiry |
+| Calculability | Is the fact authoritative enough to use? | `UNVERIFIED` vs `KNOWN` / `ON_GRID`, `require_authoritative` |
+
+Futures margin is `SUPPORTED` while a given record's margin is `MISSING` and the
+margin calculation is unavailable - all three at once, correctly. Capabilities
+never read metadata, and the policy never reads its capabilities to answer an
+availability question; both are checked mechanically. `UNKNOWN` is refused where
+`UNSUPPORTED` is required, so "nobody said" is never treated as "no".
+
+**Vocabulary is terminology.** `ProductVocabulary` carries four short English
+domain terms (`contract`, `contract(s)`, `multiplier`, `contract multiplier`) used
+in the risk engine's English audit reasons, which is the language those reasons
+have had since Phase 3. No localized sentence lives in a policy; Turkish
+user-facing copy is produced by the application layer and the frontend.
+
+**Quantity.** Public field names - `allowed_contracts`, `loss_per_contract`,
+`max_contracts` - were kept, because they are the Phase 8 API and renaming them
+would break the frontend for no behavioural gain. Messages now take their unit
+noun from the policy's vocabulary, so a future share-based product would read
+"share(s)" without an `if` in the engine. Fractional quantity is refused rather
+than approximated until a product that needs it arrives with a Decimal quantity
+type of its own.
+
+**Money and price.** No currency code and no price increment appears in generic
+code, mechanically checked: an AST scan over the domain and application packages
+rejects currency literals, `quantize`, and `Decimal("0.01")`-shaped constants in
+generic modules, and forbids `AssetClass` comparisons or `match` statements
+outside the registry and the product's own package. The synthetic market-data adapter still quantizes its
+*generated* prices to cents; it is labelled mock data and sits outside the core.
+
+**API.** One additive change: `risk.contract` gains `asset_class` and
+`asset_class_status`, present only when a trusted contract record exists. A
+Phase 8 client ignores them; the frontend schema defaults them to `null`, and the
+risk card shows "Varlık sınıfı: Vadeli işlem sözleşmesi" with its provenance.
+No control for an unimplemented market exists anywhere in the UI.
+
+**Deliberately not built.** No `PaperPosition`, no equity, crypto or FX policy,
+no venue, no fee model, no funding, no liquidation. The seam Phase 9 needs is an
+instrument identity plus a product policy, and both exist.
+
+### Future asset classes: categories of work, not values
+
+For each class below, a real implementation needs verified inputs in every
+category - none of which this document supplies.
+
+| | Equities | Crypto spot | Crypto perpetual | FX |
+| --- | --- | --- | --- | --- |
+| Metadata | listing, lot/board rules, price bands | pair precision, min notional | contract spec, mark/index definitions | pair conventions, pip definition |
+| Quantity | whole or fractional shares | fractional, step size | contract or base-asset size | lots / units |
+| Fees | commission, taxes, exchange fees | maker/taker schedule | maker/taker, funding as cost | spread, commission, swap |
+| Margin / leverage | cash vs margin account rules | none (spot) | initial/maintenance, leverage tiers | leverage, margin rate |
+| Sessions / calendar | exchange hours, holidays, auctions | continuous; venue maintenance | continuous; venue maintenance | weekly session, rollover time |
+| Settlement | T+n settlement | immediate | none (perpetual) | value date, rollover |
+| Lifecycle | corporate actions, suspensions | delistings | funding intervals, auto-deleveraging | swap/rollover |
+| Market data | quotes, depth, corporate-action-adjusted history | venue trades/quotes | mark, index, funding rate | quotes from a named liquidity source |
+| Risk policy | gap risk, short-sale constraints | venue/custody risk | liquidation price, funding exposure | weekend gaps, rollover cost |
 
 ## Cross-cutting decisions
 

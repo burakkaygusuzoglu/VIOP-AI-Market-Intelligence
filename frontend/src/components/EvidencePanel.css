@@ -1,0 +1,125 @@
+.evidence {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-4);
+}
+
+.evidence__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.evidence__note {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 60ch;
+}
+
+.evidence__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+/* Below this the two columns would be too narrow to read a sentence in, and a
+   stacked pair still reads as two separate lists because each keeps its own
+   heading and count. */
+@media (max-width: 720px) {
+  .evidence__columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.evidence__column {
+  min-width: 0;
+  border-top: 2px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.evidence__column--bullish {
+  border-top-color: var(--color-bullish);
+}
+
+.evidence__column--bearish {
+  border-top-color: var(--color-bearish);
+}
+
+.evidence__column-heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.evidence__count {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-normal);
+}
+
+.evidence__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.evidence__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.evidence__item {
+  min-width: 0;
+}
+
+.evidence__reason {
+  margin: 0 0 var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.evidence__meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.evidence__category,
+.evidence__timeframe {
+  font-family: var(--font-mono);
+}
+
+.evidence__timeframe::before {
+  content: '· ';
+}
+
+.evidence__strength::before {
+  content: '· ';
+}
+
+.evidence__id {
+  display: inline-block;
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.evidence__other {
+  margin-top: var(--space-4);
+}

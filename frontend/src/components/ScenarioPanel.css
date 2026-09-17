@@ -1,0 +1,207 @@
+.scenarios {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.scenarios__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.scenarios__note {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 70ch;
+}
+
+.scenarios__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (max-width: 900px) {
+  .scenarios__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.scenario {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-top-width: 2px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  background: var(--color-bg);
+}
+
+.scenario--bull {
+  border-top-color: var(--color-bullish);
+}
+
+.scenario--bear {
+  border-top-color: var(--color-bearish);
+}
+
+.scenario--neutral {
+  border-top-color: var(--color-inactive);
+}
+
+.scenario__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.scenario__heading {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.scenario__state {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 1px var(--space-2);
+}
+
+.scenario__quality {
+  margin: 0 0 var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.scenario__score {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.scenario__kind,
+.scenario__quality--none {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.scenario__reason {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.scenario__group {
+  margin-top: var(--space-3);
+}
+
+.scenario__group-heading {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.scenario__list,
+.scenario__components {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.scenario__components {
+  list-style: none;
+  padding-left: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.scenario__availability {
+  color: var(--color-text-muted);
+}
+
+.narrative {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* A model-cited number is set apart from the prose around it: the value was
+   rendered by Python from the fact registry, not typed by the model. */
+.narrative__fact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--tint-muted);
+}
+
+.narrative__fact--observation {
+  background: var(--tint-waiting);
+}
+
+.devils {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.devils__heading,
+.contradictions__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.devils__absent {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 70ch;
+}
+
+.contradictions {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.contradictions__list {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.contradictions__type {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.contradictions__item--critical {
+  color: var(--color-blocked);
+}

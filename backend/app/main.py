@@ -9,14 +9,30 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
+from app.adapters.market_data.csv_provider import CsvCandleTextParser
 from app.adapters.persistence.database import Database
 from app.adapters.persistence.health import SqlAlchemyDatabaseHealth
 from app.adapters.system.clock import SystemClock
+from app.api.limits import RequestSizeLimitMiddleware, bounded_validation_response
 from app.api.middleware import RequestContextMiddleware
+from app.api.providers import (
+    build_screenshot_analyzer,
+    build_synthesis_settings,
+    build_synthesizer,
+)
+from app.api.routes.analysis import (
+    get_candle_parser,
+    get_synthesis_settings,
+    get_synthesizer,
+)
+from app.api.routes.analysis import router as analysis_router
 from app.api.routes.health import router as health_router
+from app.api.routes.screenshots import get_analyzer
 from app.api.routes.screenshots import router as screenshots_router
 from app.application.use_cases.get_liveness import GetLiveness
 from app.application.use_cases.get_system_health import GetSystemHealth
@@ -32,24 +48,28 @@ DISCLAIMER = (
 
 
 # ----------------------------------------------------------------------
-# Synthesis is deliberately NOT wired into the HTTP surface yet.
+# Phase 8 wires what Phase 7 deferred.
 #
-# `run_synthesis`, `ClaudeMarketSynthesizer` and the whole validation chain are
-# implemented and tested. What does not exist is a **trusted runtime source of
-# a `SynthesisContext`**: no market-data provider is composed here, there is no
-# analysis route, and nothing persists a deterministic analysis a request could
-# name. A synthesis endpoint would therefore have had exactly one reachable
-# answer - "there is nothing to synthesise" - while looking operational in the
-# OpenAPI document.
+# Phase 7 left synthesis unrouted because nothing could supply it a *trusted*
+# `SynthesisContext`: no market-data provider was composed, there was no
+# analysis route, and accepting an analysis from the request body would have
+# handed a client the ActionEnvelope - the Phase 6 provenance defect rebuilt on
+# purpose.
 #
-# The alternatives were worse. Accepting an analysis from the request body
-# would hand a client the ActionEnvelope, which is the Phase 6 provenance
-# defect rebuilt deliberately. An in-memory pseudo-store would be fake
-# persistence. Both were rejected.
+# `POST /api/analysis` closes that. It builds a real deterministic analysis
+# from user-supplied historical OHLCV using the Phase 1-4 engines, and the
+# synthesis context is derived from *that* result, server-side. The client
+# supplies candles, an account and risk settings; it cannot supply an
+# indicator, a risk verdict or an action.
 #
-# So the endpoint is deferred to the phase that introduces the analysis
-# lifecycle. That phase wires a market-data provider and a context source here,
-# and adds the route; nothing in the synthesis packages needs to change.
+# Both AI providers are optional and are constructed here, once, from
+# configuration:
+#
+#   * unconfigured -> the builder returns None -> a typed NOT_CONFIGURED state.
+#     No vendor client is constructed and no request is made.
+#   * configured   -> the real adapter, injected through the route's dependency
+#     seam. The seam exists so tests can substitute a fake transport; it is no
+#     longer the *only* thing that fills it, which was the Phase 8A finding.
 # ----------------------------------------------------------------------
 
 
@@ -110,7 +130,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         description=DISCLAIMER,
         lifespan=lifespan,
     )
+    # Order matters. Starlette builds the stack with the *last* added
+    # middleware outermost, so this reads inside-out:
+    #
+    #   CORS  ->  RequestSizeLimit  ->  RequestContext  ->  routes
+    #
+    # The size limiter sits inside CORS so a 413 still carries the headers a
+    # browser needs in order to read it, and outside everything that could
+    # assemble a body from `receive` - which is the whole point, since it can
+    # only bound what it wraps.
     application.add_middleware(RequestContextMiddleware)
+    application.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=settings.max_request_bytes,
+    )
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
@@ -118,8 +151,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["*"],
     )
+
+    @application.exception_handler(RequestValidationError)
+    async def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+        """422 bodies are bounded; see `bounded_validation_response`."""
+        status, payload = bounded_validation_response(exc)
+        return JSONResponse(status_code=status, content=payload)
+
     application.include_router(health_router, prefix=settings.api_prefix)
     application.include_router(screenshots_router, prefix=settings.api_prefix)
+    application.include_router(analysis_router, prefix=settings.api_prefix)
+
+    # The composition root fills the provider seams. Overriding a dependency is
+    # how the *application* injects its adapters here, not a test-only hook -
+    # but a test that overrides these must not thereby be the only reason they
+    # are ever filled, which is what `tests/unit/test_composition_root.py`
+    # checks without any override in place.
+    # An instance, not the class: FastAPI would otherwise treat the class as a
+    # dependency callable and try to build its __init__ parameters as request
+    # fields, which fails on `tzinfo | None`.
+    candle_parser = CsvCandleTextParser()
+    application.dependency_overrides[get_candle_parser] = lambda: candle_parser
+
+    analyzer = build_screenshot_analyzer(settings)
+    if analyzer is not None:
+        application.dependency_overrides[get_analyzer] = lambda: analyzer
+
+    synthesizer = build_synthesizer(settings)
+    application.dependency_overrides[get_synthesizer] = lambda: synthesizer
+    synthesis_settings = build_synthesis_settings(settings)
+    application.dependency_overrides[get_synthesis_settings] = lambda: synthesis_settings
+
+    logger.info(
+        "providers composed",
+        extra={
+            "vision_configured": settings.vision_is_configured,
+            "synthesis_configured": settings.synthesis_is_configured,
+        },
+    )
     return application
 
 

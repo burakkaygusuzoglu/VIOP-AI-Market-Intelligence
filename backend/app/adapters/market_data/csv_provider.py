@@ -25,12 +25,17 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import io
 from collections.abc import Sequence
 from datetime import UTC, datetime, tzinfo
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from app.application.ports.market_data import MarketDataFetch
+from app.application.ports.market_data import (
+    CandleParseError,
+    CandleRowLimitError,
+    MarketDataFetch,
+)
 from app.domain.common.enums import Timeframe
 from app.domain.market.candle import Candle
 from app.domain.market.quality import (
@@ -43,12 +48,24 @@ REQUIRED_COLUMNS = ("open_time", "open", "high", "low", "close", "volume")
 """Minimum schema. ``open_interest`` and ``is_closed`` are optional columns."""
 
 
-class CsvSchemaError(ValueError):
+class CsvSchemaError(CandleParseError):
     """The file cannot be read as market data at all.
 
     Distinct from a malformed row. A missing ``close`` column is not a data
     quality finding to weigh up - there is no dataset to assess - so it is
     raised rather than reported.
+
+    Subclasses the port's `CandleParseError` so the application layer can catch
+    the failure without importing this adapter, while existing callers that
+    catch `CsvSchemaError` keep working unchanged.
+    """
+
+
+class CsvRowLimitError(CsvSchemaError, CandleRowLimitError):
+    """The file has more rows than the caller is willing to accept.
+
+    Both a CSV schema error and the port's row-limit error, so it is catchable
+    from either side of the boundary.
     """
 
 
@@ -123,69 +140,126 @@ class CsvHistoricalMarketDataProvider:
         if not path.is_file():
             raise CsvSchemaError(f"no market data file at {path}")
 
-        candles: list[Candle] = []
-        issues: list[DataQualityIssue] = []
-
-        with path.open(encoding="utf-8", newline="") as handle:
-            reader = csv.DictReader(handle)
-            if reader.fieldnames is None:
-                raise CsvSchemaError(f"{path} is empty; it has no header row")
-            missing = [name for name in REQUIRED_COLUMNS if name not in reader.fieldnames]
-            if missing:
-                raise CsvSchemaError(f"{path} is missing column(s): {', '.join(missing)}")
-
-            # Header is line 1, so the first data row is line 2.
-            for line_number, row in enumerate(reader, start=2):
-                try:
-                    candle = self._parse_row(row, symbol=symbol, timeframe=timeframe)
-                except _RowError as error:
-                    issues.append(
-                        DataQualityIssue(
-                            code=DataQualityCode.MALFORMED_ROW,
-                            severity=DataQualitySeverity.BLOCK,
-                            message=f"{path.name} line {line_number}: {error}",
-                        )
-                    )
-                    continue
-
-                if start is not None and candle.open_time < start:
-                    continue
-                if end is not None and candle.open_time >= end:
-                    continue
-                candles.append(candle)
-
-        return MarketDataFetch(candles=tuple(candles), issues=tuple(issues))
-
-    def _parse_row(
-        self, row: dict[str, str | None], *, symbol: str, timeframe: Timeframe
-    ) -> Candle:
-        open_time = self._parse_timestamp(_required(row, "open_time"))
-        return Candle(
+        return parse_candle_csv(
+            path.read_text(encoding="utf-8"),
             symbol=symbol,
             timeframe=timeframe,
-            open_time=open_time,
-            open=_parse_decimal(row, "open"),
-            high=_parse_decimal(row, "high"),
-            low=_parse_decimal(row, "low"),
-            close=_parse_decimal(row, "close"),
-            volume=_parse_decimal(row, "volume"),
-            is_closed=_parse_bool(row.get("is_closed")),
-            open_interest=_parse_optional_decimal(row, "open_interest"),
+            source_name=path.name,
+            default_tz=self._default_tz,
+            start=start,
+            end=end,
         )
 
-    def _parse_timestamp(self, raw: str) -> datetime:
-        try:
-            moment = datetime.fromisoformat(raw.strip())
-        except ValueError as error:
-            raise _RowError(f"open_time {raw!r} is not ISO-8601") from error
 
-        if moment.tzinfo is not None:
-            return moment
-        if self._default_tz is None:
-            raise _RowError(
-                f"open_time {raw!r} has no UTC offset and no default timezone is configured"
+def parse_candle_csv(
+    text: str,
+    *,
+    symbol: str,
+    timeframe: Timeframe,
+    source_name: str,
+    default_tz: tzinfo | None = UTC,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    max_rows: int | None = None,
+) -> MarketDataFetch:
+    """Parse CSV *text* into candles and parse failures.
+
+    The single OHLCV parser in the project. It exists as a module function
+    rather than a method so that a file on disk and an uploaded body go through
+    exactly the same code: a second parser would drift, and the two would
+    eventually disagree about what a malformed row is - which is a difference a
+    user would experience as "the same file behaves differently depending on
+    how I gave it to you".
+
+    It keeps every rule this adapter always had, and adds none:
+
+    * no sorting, no deduplication, no gap filling, no clamping. Those are
+      findings for the Data Quality Engine to *report*, and repairing them here
+      would destroy the evidence that they happened.
+    * an unparseable row becomes a ``MALFORMED_ROW`` issue travelling with the
+      data, not an exception.
+    * a structurally impossible file - no header, a missing required column -
+      raises ``CsvSchemaError``, because there is no dataset to assess.
+
+    ``max_rows`` bounds the number of *data rows* accepted. Exceeding it raises
+    ``CsvRowLimitError`` rather than returning a truncated dataset, because a
+    silently truncated series is a wrong analysis rather than a refused one.
+    """
+    reader = csv.DictReader(io.StringIO(text, newline=""))
+    if reader.fieldnames is None:
+        raise CsvSchemaError(f"{source_name} is empty; it has no header row")
+    missing = [name for name in REQUIRED_COLUMNS if name not in reader.fieldnames]
+    if missing:
+        raise CsvSchemaError(f"{source_name} is missing column(s): {', '.join(missing)}")
+
+    candles: list[Candle] = []
+    issues: list[DataQualityIssue] = []
+    rows_seen = 0
+
+    # Header is line 1, so the first data row is line 2.
+    for line_number, row in enumerate(reader, start=2):
+        rows_seen += 1
+        if max_rows is not None and rows_seen > max_rows:
+            raise CsvRowLimitError(
+                f"{source_name} has more than {max_rows} rows; refusing to analyse a "
+                "truncated dataset"
             )
-        return moment.replace(tzinfo=self._default_tz)
+        try:
+            candle = _parse_row(row, symbol=symbol, timeframe=timeframe, default_tz=default_tz)
+        except _RowError as error:
+            issues.append(
+                DataQualityIssue(
+                    code=DataQualityCode.MALFORMED_ROW,
+                    severity=DataQualitySeverity.BLOCK,
+                    message=f"{source_name} line {line_number}: {error}",
+                )
+            )
+            continue
+
+        if start is not None and candle.open_time < start:
+            continue
+        if end is not None and candle.open_time >= end:
+            continue
+        candles.append(candle)
+
+    return MarketDataFetch(candles=tuple(candles), issues=tuple(issues))
+
+
+def _parse_row(
+    row: dict[str, str | None],
+    *,
+    symbol: str,
+    timeframe: Timeframe,
+    default_tz: tzinfo | None,
+) -> Candle:
+    open_time = _parse_timestamp(_required(row, "open_time"), default_tz)
+    return Candle(
+        symbol=symbol,
+        timeframe=timeframe,
+        open_time=open_time,
+        open=_parse_decimal(row, "open"),
+        high=_parse_decimal(row, "high"),
+        low=_parse_decimal(row, "low"),
+        close=_parse_decimal(row, "close"),
+        volume=_parse_decimal(row, "volume"),
+        is_closed=_parse_bool(row.get("is_closed")),
+        open_interest=_parse_optional_decimal(row, "open_interest"),
+    )
+
+
+def _parse_timestamp(raw: str, default_tz: tzinfo | None) -> datetime:
+    try:
+        moment = datetime.fromisoformat(raw.strip())
+    except ValueError as error:
+        raise _RowError(f"open_time {raw!r} is not ISO-8601") from error
+
+    if moment.tzinfo is not None:
+        return moment
+    if default_tz is None:
+        raise _RowError(
+            f"open_time {raw!r} has no UTC offset and no default timezone is configured"
+        )
+    return moment.replace(tzinfo=default_tz)
 
 
 class _RowError(ValueError):
@@ -224,3 +298,34 @@ def _parse_bool(value: str | None) -> bool:
     if normalized in {"false", "0", "no"}:
         return False
     raise _RowError(f"is_closed {value!r} is not a boolean")
+
+
+class CsvCandleTextParser:
+    """`CandleTextParser` over CSV text.
+
+    A thin object around `parse_candle_csv` so the application layer can depend
+    on the port instead of on this module. It holds only the timezone policy;
+    all parsing behaviour stays in the one shared function, which is also what
+    the on-disk provider uses.
+    """
+
+    def __init__(self, *, default_tz: tzinfo | None = UTC) -> None:
+        self._default_tz = default_tz
+
+    def parse(
+        self,
+        text: str,
+        *,
+        symbol: str,
+        timeframe: Timeframe,
+        source_name: str,
+        max_rows: int | None = None,
+    ) -> MarketDataFetch:
+        return parse_candle_csv(
+            text,
+            symbol=symbol,
+            timeframe=timeframe,
+            source_name=source_name,
+            default_tz=self._default_tz,
+            max_rows=max_rows,
+        )

@@ -27,9 +27,69 @@
   --space-5: 24px;
   --space-6: 32px;
 
+  --space-7: 48px;
+
   --radius: 6px;
+  --radius-sm: 4px;
+  --radius-pill: 999px;
   --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+
+  /* Type scale. A workstation is dense; hierarchy has to come from weight and
+     spacing as much as from size. */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+
+  --weight-normal: 400;
+  --weight-medium: 550;
+  --weight-bold: 680;
+
+  /* Elevation. Restrained: a trading surface should not look like a stack of
+     floating cards. */
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 40%);
+  --elevation-2: 0 4px 12px rgb(0 0 0 / 45%);
+
+  /* Semantic surfaces for status. Each is *always* paired with a text label -
+     colour never carries meaning alone (§7, §28). */
+  --tint-bullish: rgb(63 185 80 / 12%);
+  --tint-bearish: rgb(248 81 73 / 12%);
+  --tint-waiting: rgb(210 153 34 / 14%);
+  --tint-blocked: rgb(248 81 73 / 18%);
+  --tint-system: rgb(88 166 255 / 12%);
+  --tint-muted: rgb(154 167 180 / 10%);
+
+  --color-blocked: #ff7b72;
+  --color-system: #58a6ff;
+  --color-focus: #7ee787;
+
+  /* Provenance. Deliberately low-chroma: provenance is a qualifier, not a
+     status, and must not compete with the action colours. */
+  --color-provenance-calculated: #7ee787;
+  --color-provenance-observed: #d29922;
+  --color-provenance-inferred: #a371f7;
+  --color-provenance-unverified: #9aa7b4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* A single visible focus treatment, applied everywhere rather than per
+   component, so no control can quietly lose it. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 * {
@@ -43,15 +103,78 @@ body {
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
+  /* Long unbreakable tokens are normal here, not exotic: ISO timestamps,
+     `postgres:5432/viop`, `VISION_NOT_CONFIGURED`, context digests, and
+     whatever text a vision model read off someone else's chart. */
+  overflow-wrap: break-word;
+}
+
+/*
+ * Narrow-viewport hardening. **Measured, and deliberately not overstated.**
+ *
+ * Grid and flex children default to `min-width: auto`, which refuses to shrink
+ * below their content, so one unbreakable token can widen every ancestor and
+ * scroll the page sideways.
+ *
+ * Browser measurement of the built app, at true viewport widths inside an
+ * iframe, with and without these three rules:
+ *
+ *     width   without    with
+ *     1440    no         no
+ *     1024    no         no
+ *      768    no         no
+ *      390    no         no
+ *      360    no         no
+ *      320    no         no
+ *      280    OVERFLOW   no      <- `dd` [142..298] in .detail-grid
+ *      240    OVERFLOW   no
+ *
+ * So this fixes nothing at any width the product targets; it removes a real
+ * failure mode below 320px. It is kept because the trigger is the health
+ * panel's ISO timestamp - a value that only gets longer - and because the cost
+ * is three rules.
+ *
+ * Recorded precisely because the first pass got it wrong: a 390px *screenshot*
+ * appeared to show the page clipped, and it was an artifact of Chrome refusing
+ * a window narrower than ~500px and capturing 390px of a 512px layout. A
+ * screenshot at a width the browser would not honour is not evidence.
+ */
+.app > *,
+.panel > *,
+.detail-grid > * {
+  min-width: 0;
+}
+
+/* Machine identifiers wrap rather than push. */
+code {
+  overflow-wrap: anywhere;
 }
 
 .app {
-  max-width: 960px;
+  /* Wider than a reading column: this is an information workstation, and a
+     960px cap wasted half a laptop screen. Still capped, because full-bleed
+     text lines are unreadable on a 27" monitor. */
+  max-width: 1360px;
   margin: 0 auto;
   padding: var(--space-6) var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+}
+
+.app__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.app__header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .app__title {
@@ -106,20 +229,36 @@ body {
   background: var(--color-bearish);
 }
 
+/*
+ * Label/value pairs.
+ *
+ * `minmax(0, …)` on both tracks rather than the obvious `max-content 1fr`.
+ * A bare `1fr` is `minmax(auto, 1fr)`, and its automatic minimum is the
+ * content's min-content width - so a single unbreakable token refuses to
+ * shrink and pushes the whole page wider than the viewport.
+ *
+ * The trigger is the health panel's ISO timestamp
+ * (`2026-09-03T18:28:59.536536Z` - 27 monospace characters with no space to
+ * break at). Measured, it overflows below 320px and not at 390px; see the
+ * table above the `min-width: 0` block.
+ */
 .detail-grid {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
   gap: var(--space-2) var(--space-4);
   margin-top: var(--space-3);
 }
 
 .detail-grid dt {
   color: var(--color-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .detail-grid dd {
   margin: 0;
   font-family: var(--font-mono);
+  /* Machine values - timestamps, hosts, versions - have no spaces to wrap at. */
+  overflow-wrap: anywhere;
 }
 
 .notice {
@@ -144,4 +283,22 @@ button {
 
 button:hover {
   border-color: var(--color-neutral);
+}
+
+/* Content for assistive technology only.
+
+   Two components now need this - the technical panel's group label and the
+   analyze screen's progress announcement - so it lives here rather than in
+   whichever component happened to want it first. Clipped rather than
+   `display: none`, because a hidden element is not announced at all. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

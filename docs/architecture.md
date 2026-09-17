@@ -567,6 +567,414 @@ ranks — letting the request pick would be letting it choose its own authority
 one notch at a time. A user's own correction earns `USER_CONFIRMED`: above
 anything a screenshot or model produced, and never validated market data.
 
+## The analysis lifecycle (Phase 8)
+
+Phase 8 gave the system its first **real runtime path from input to analysis**.
+Before it, the Phase 1-4 engines existed and were tested and no HTTP surface
+reached them; the frontend could only say so.
+
+    POST /api/analysis
+      body (extra="forbid")        a forged derived field is a 422, not a value
+      -> AnalysisRequest           only user-suppliable things exist on it
+      -> CandleTextParser port     one parser, shared with the on-disk provider
+      -> DataQualityEngine         Phase 1
+      -> compute_technicals        Phase 1
+      -> analyse_structure         Phase 2
+      -> TimeframeView per role    Phase 4
+      -> analyse_multi_timeframe   Phase 4: evidence, contradictions, fusion,
+                                   scenarios
+      -> assess_no_trade           per direction
+      -> size_position             Phase 3, only when it is honest to
+      -> SynthesisContext          Phase 7, optional
+      -> AnalysisResponse          projection, no calculation
+      -> zod schema -> mapper -> AnalysisReadModel -> components
+
+**The orchestrator computes nothing.** Every number it reports comes from an
+engine that already existed. An import contract enforces it: the package may
+not reach for an indicator routine, a margin or PnL module, an adapter, or the
+API layer.
+
+**The analysis is ephemeral.** It lives for the request. `analysis_id` is a
+content address - a SHA-256 over the symbol, each dataset's digest, the risk
+settings and `analysis_as_of` - so identical inputs give an identical id and any
+change gives a different one. It is not a database key, there is no endpoint
+that fetches it back, and the payload carries `ephemeral: true` so a client
+cannot mistake it for one. `generated_at` is metadata *about the run* and is
+deliberately outside the identity: an identifier that changes when nothing about
+the market changed identifies nothing. That correction was first paid for in
+Phase 7's synthesis digest.
+
+### The trust boundary is a type
+
+A client may supply OHLCV text, an instrument identifier, account equity, risk
+settings, an intended entry and stop, an account currency code, and screenshot
+files. There is **no field** on the request for an indicator, a market
+structure, a setup or entry score, a suitability verdict, a risk result, an
+`ActionEnvelope`, a final action, or a synthesis result. Not "present and
+ignored" - absent, so a forged one is a 422 and a type error. This is the Phase
+6 provenance defect's lesson applied structurally: the escalation has no
+representation.
+
+Typing a symbol does not create verified contract metadata. Sizing requires the
+multiplier *and* tick size to be `VERIFIED_CURRENT_FACT`; a development default,
+a fixture or an unverified value refuses, with the reason attached.
+
+### Partial is not complete
+
+Technical, risk and synthesis availability are three separate facts and are
+reported separately.
+
+* A timeframe with no dataset is **absent** and stays absent through evidence
+  generation; it never becomes a neutral reading.
+* A blocked dataset yields no series, and its role is unavailable with the Data
+  Quality Engine's own findings.
+* Risk has **three** outcomes, not two. `ALLOWED`, `NOT_PERMITTED` (the engine
+  ran and refused) and `UNDETERMINED` (it ran and could not conclude - typically
+  no initial margin). Reporting the third as the second tells a user their trade
+  was rejected when an input was missing, and a test now pins the difference.
+* Synthesis being unconfigured or failing disturbs none of the above.
+
+### Input limits
+
+An OHLCV upload is attacker-controlled and is bounded before the work it
+guards: 8 MB per timeframe, 60 000 rows per timeframe, 120 000 rows total, a
+64-character symbol. A file over the row limit is **refused, not truncated** - a
+silently truncated series is a wrong analysis rather than a refused one. No
+error message echoes file content.
+
+### Provider composition
+
+`app/api/providers.py` is the only place either AI provider is constructed.
+Each builder returns `None` when its configuration is incomplete, and the caller
+turns that into a typed NOT_CONFIGURED state; no vendor client is ever built
+with an empty key "to let it fail later".
+
+`tests/unit/test_composition_root.py` proves the wiring **without installing any
+dependency override** - the mistake that let the Phase 6 gap survive was a test
+that installed the very thing it was checking.
+
+### Synthesis reachability
+
+Phase 7 removed its public endpoint because nothing could supply a trusted
+`SynthesisContext`. Phase 8 did not resurrect it. Synthesis is an optional step
+*inside* the analysis request, built from the server's own result:
+
+* configured -> it may run, and an accepted draft yields a `FinalAction`;
+* unconfigured -> deterministic analysis still returns, `synthesis_status =
+  NOT_CONFIGURED`, `final_action = null`;
+* provider failure -> the same, and **no WAIT or NO_TRADE is fabricated**.
+
+A model proposing an action outside the deterministic `ActionEnvelope` is
+rejected with the reason, not downgraded.
+
+## The presentation layer (Phase 8A)
+
+The frontend has its own architecture, enforced by
+`frontend/src/test/architecture.test.ts` the way import-linter enforces the
+backend's. The direction is:
+
+    api  →  domain (read models)  →  format  →  components  →  App
+
+`api/` is the only place a `fetch` appears. `domain/` holds the frontend's own
+vocabulary, `format/` turns raw backend strings into display text, components
+consume read models and never raw JSON, and `App` composes them. No arithmetic
+exists anywhere in the tree, and the test forbids the shortcuts that would
+introduce it: a `.toFixed(` outside the formatting module, a `parseFloat` on a
+backend decimal followed by an operator, an `Intl.NumberFormat` improvised at a
+call site.
+
+**Raw value ≠ display value.** The backend sends `24.658334322196957` because
+that is exactly what Phase 1 computed; rounding it there would alter a number
+the synthesis layer does not own. Rounding happens at render, from
+`NumericFact.raw`, which is never mutated — so the tooltip, the audit view and
+the log all still show the engine's number. Precision comes from the value's
+*semantics*, not its data: contracts are integers because contracts are
+indivisible, prices are shown as sent because tick size is a per-contract
+exchange fact that has not reached the frontend yet, and inventing one would be
+a fabricated exchange fact. The policy is versioned as `display-format/v1`.
+
+**No binary floating point in the rounding.** Decimal strings are rounded
+digit by digit with a `BigInt` carry. `parseFloat` on a decimal string to round
+it would reintroduce the exact float error the backend spends `Decimal` to
+avoid.
+
+**Observed values are not formatted.** A screenshot reading of `99` displays as
+`99`, never `99.00`. Running an observation through numeric formatting puts
+digits in the picture's mouth — it claims a precision the image never showed,
+and makes an unverified reading look more machine-like than the calculated
+value beside it. `VISION_READ`, `AI_INFERENCE` and `UNVERIFIED` render exactly
+as recorded.
+
+**Times name their zone.** Every rendered timestamp is UTC and says `UTC`. It
+did not until an empirical review of the rendered dashboard caught it: `2 Mar
+2026 12:00` reads as local time to a trader in Istanbul, who is three hours
+ahead, and nothing else on the page would have contradicted it.
+
+**Capability matrix as code.** `domain/capabilities.ts` is the single claim
+about what the running backend can do, and the UI reads it rather than
+remembering. It distinguishes `AVAILABLE_NOW` from `ENDPOINT_NOT_WIRED` —
+`POST /api/screenshots/analyse` is fully implemented, reachable, and returns
+503 on every production call, because its analyzer dependency is overridden
+only in tests. A route in the OpenAPI document is not a working feature, and
+that difference is invisible without tracing the dependency to the composition
+root. `APPLICATION_ONLY` covers engines that exist and are tested but reach no
+HTTP surface, which is where Phases 1–4 sit; `DEFERRED` covers Phase 7
+synthesis. `isLive()` is the only gate the UI may use to offer an action, and
+it is true only for `AVAILABLE_NOW`.
+
+### Screenshot Vision: IMPLEMENTATION EXISTS, PRODUCTION WIRING DEFERRED
+
+`POST /api/screenshots/analyse` is a cross-phase dead capability and is
+recorded here so it is not rediscovered as a surprise.
+
+*Implementation exists.* Phase 6 built the whole path — byte-size bound, header
+preflight, dimension policy, bounded decode, `ClaudeScreenshotAnalyzer`, the
+transport, strict result validation, quality and mismatch reporting, typed
+errors — and it is fully tested.
+
+*Production wiring is deferred.* The route resolves its analyser through
+`Depends(get_analyzer)`, and `get_analyzer` raises 503 by default. It is
+overridden in exactly one place, `tests/unit/vision/test_screenshot_api.py`.
+Nothing under `app/` constructs `ClaudeScreenshotAnalyzer`, and
+`create_app().dependency_overrides` is empty. Every production call therefore
+returns `503 VISION_NOT_CONFIGURED`, confirmed against the running container.
+
+*The gate.* No screenshot-upload or correction UI may be enabled while
+`capability('screenshot-analysis').state` is `ENDPOINT_NOT_WIRED`. Turning that
+capability to `AVAILABLE_NOW` requires the composition root to construct the
+analyser from configuration, a test proving the wiring at the composition root
+rather than through a dependency override, and only then the UI. The frontend
+capability tests assert the current state, so flipping it without doing the
+work fails the suite rather than shipping a button that always errors.
+
+**The shell has no speculative branch.** `App` renders the unavailable state
+unconditionally, because nothing produces an analysis. An earlier version
+branched on `analysisIsAvailable()` and, having nothing to put in the other
+half, rendered the same card with an empty explanation — a branch that looks
+like readiness and behaves worse than the state it replaces. The seam is a
+failing test instead: `App.test.tsx` asserts the capability is false, so the
+phase that wires an analysis source must come back and write the query.
+
+**Meaning never depends on colour.** Every provenance, direction and
+confirmation state is stated in words; glyphs are `aria-hidden` decoration
+whose meaning exists in text beside them. Each confirmation state gets a
+different glyph *shape* rather than a different orientation of one shape —
+`◐` and `◑` one row apart are indistinguishable at 12px.
+
+**The exact value is reached through Pro mode, not a tooltip.** Rounded values
+carry a `title` with the raw number, and that is a sighted-mouse convenience
+only — `title` is not keyboard reachable, is unreliable on touch, and has
+uneven screen-reader support. Pro mode renders the raw value as real on-screen
+text, and that is the guaranteed route. Beginner mode is deliberately left
+uncluttered rather than given a tooltip that pretends to be an accessible one.
+
+**Narrow-viewport hardening is measured, not assumed.** Browser measurement at
+true viewport widths (inside an iframe, because Chrome on Windows will not open
+a window narrower than ~500px) shows no horizontal overflow at 1440, 1024, 768,
+390, 360 or 320px. Below 320px, the health panel's ISO timestamp — 27 monospace
+characters with no space to break at — overflowed through a `1fr` track whose
+automatic minimum is min-content. `minmax(0, …)` tracks, `min-width: 0` on
+layout children and `overflow-wrap` on machine values remove that failure mode
+down to 240px.
+
+**The timeframe ladder declares its ARIA roles explicitly.** Below 560px the
+table becomes `display: block` so four columns do not overflow a narrow screen,
+and changing a table element's display drops its implicit role in every major
+browser. Without the explicit roles the ladder would stop being a table for
+assistive technology at exactly the width where the visual column headers are
+hidden — so each cell also carries a `data-label` that the stacked layout
+prints in front of its value.
+
+**Model output is never HTML.** No `dangerouslySetInnerHTML`, no `innerHTML`
+assignment; an architecture test forbids both across the whole tree, tests
+included. Untrusted text renders as text — an injection payload from a chart
+reaches the user as the words it is, because a chart really did say that and
+hiding it would lose a real observation.
+
+**No fake runtime.** Fixtures live in `src/test/` and an architecture test
+forbids a production module importing them. There is no seeded demo analysis,
+no placeholder price, no zeroed card standing in for a measurement nobody made.
+A missing value renders as `—`, never as `0`, because a zero is a number and
+would read as a measurement.
+
+**Screens, not routes.** Dashboard, Analyze Market and Analysis Workspace are a
+state machine in `App`, not URLs. The analysis is ephemeral, so a workspace URL
+would be a promise the system cannot keep: a bookmark or a refresh would land on
+an empty page that looks broken. No routing dependency was added, and the
+workspace says out loud that its result is not saved. Revisit when analyses
+become persistent.
+
+**A stale response cannot overwrite a newer one.** Each submission takes a
+sequence number and an `AbortController`; a result is written to state only if
+its ticket is still the newest. The submit button also disables itself while a
+request is running, so the interleaving a user can actually create is submit ->
+cancel -> submit, and the abandoned response is both cancelled and ignored.
+
+**The chart is SVG, drawn only from DTO candles.** No charting dependency was
+added: Phase 8 needs candles, support/resistance bands and a timeframe switch,
+not pan, zoom, crosshairs or a streaming API. Every bar is a DOM node, so the
+textual alternative is the same data rather than a parallel description that can
+drift. Prices become JavaScript numbers exactly once, to compute pixel
+coordinates that are discarded on the next render; every number a user reads
+comes from `display.ts` operating on the exact string. Revisit if pan/zoom or
+indicator overlays become requirements.
+
+**Currency is displayed, never inferred.** A money value shows a currency only
+when the user supplied the code. `TRY` is not assumed because VIOP is Turkish,
+and nothing is derived from locale. The two-decimal rule for money is a
+documented *generic display policy*, explicitly not a currency minor-unit rule -
+this project has no verified currency registry and does not pretend the account
+is denominated in a two-decimal currency.
+
+**Vision confidence is extraction confidence.** It is how legible the model
+found the text on the picture. It is not a market confidence, not a probability
+the reading is right, and not a probability a trade will work. It is rendered as
+"okunabilirlik 0.74 (model beyani)", never as a percentage, and a missing
+confidence stays missing rather than becoming zero.
+
+**Screenshots: the uploaded bytes are the analysed bytes.** Still true, and now
+true *with* a crop. A crop does not edit the chosen file; `cropToFile` renders
+the selected region to a canvas and returns a **new `File`**, which is hashed and
+uploaded like any other. The original is untouched and simply not sent, so there
+remains exactly one artifact and one identity, and "what was actually read?" has
+one answer. Zoom is a CSS transform on the preview and never reaches the bytes at
+all. Object URLs are revoked on replace and unmount.
+
+## Vision is a separate workflow (Phase 8)
+
+Phase 6 built a screenshot pipeline and Phase 8 built an analysis endpoint, and
+they are not connected. That is deliberate: a trusted join between an inferred
+reading and a calculated one is a design decision with its own safety rules, and
+the end of a UI phase is the worst place to make it.
+
+The non-join is **structural rather than current**. There is no request field
+that accepts a Vision result, no response field that carries one, and nothing of
+it in the synthesis context the model would read. A forged provenance is not
+rejected so much as homeless - `extra="forbid"` answers 422 because the field
+does not exist at all.
+
+Being right in the code is not enough when the screenshot slots sit inside the
+Analyze Market form, directly above the button that runs the analysis. So the
+screen says so twice: a standing note in the screenshot section states that
+these readings reach neither the evidence, the risk nor the synthesis, and the
+pre-submit summary repeats the scope beside the capability, because that is the
+last thing read before pressing Analyse.
+
+Proven end to end in a browser: a screenshot is uploaded, a deterministic
+analysis is run, and its `analysis_id` is byte-identical to one produced by a
+direct API call carrying the same CSVs and no screenshot at all. The id is a
+SHA-256 over the symbol, the dataset digests, the risk settings and
+`analysis_as_of` - so a screenshot that had contributed anything would have had
+to change one of those.
+
+What Vision still does: extract observations, be reviewed, be corrected, and
+keep its provenance. Those observations stay separate until a trusted
+server-side join is explicitly built.
+
+## The closeout invariants (Phase 8 final)
+
+Five decisions came out of the final human-review closeout. Each was reached by
+measuring the running system rather than by reading the code, and each is pinned
+by a mutation probe that fails when it is removed.
+
+**Untrusted input has a bounded HTTP ingest path.** `InputLimits` describes what
+an *analysis* will accept; it runs after FastAPI has read the whole body, decoded
+it and validated it. Measured against the container, a 64 MiB body was accepted
+in 0.5 s, fully materialised, and only then refused. So
+`app/api/limits.py` bounds ingest as pure ASGI — the only layer that can see the
+`receive` callable before anything assembles a body from it. A
+`BaseHTTPMiddleware` cannot: by the time it holds a `Request`, the buffering
+machinery already exists. Content-Length is a genuine fast path, not just an early hint: when the header
+alone proves the request is too large, the 413 is sent and `receive` is **never
+awaited** - measured by counting awaits of the ASGI callable, both on the
+middleware in isolation and through the composed application. Nothing is read,
+no route runs, no request model is parsed. The received-byte count is the check
+that *holds*, because a chunked request carries no Content-Length and a
+dishonest one carries the wrong number; with no header, or a lying one, the
+counter stops the body at the ceiling and the excess is never consumed.
+
+The reverse proxy is not the security boundary. nginx returned 413 at its 1 MiB
+default, which is *below* the application's own per-timeframe limit — a proxy
+default is not a decision this application made, and the backend port is
+reachable without it. `client_max_body_size` is now set deliberately.
+
+**Input limits do not imply output limits.** Most response collections are
+bounded by the engines' vocabulary — three scenarios, two directions, four roles,
+a fixed indicator set — so their size does not follow the input. Five did follow
+it, and every one was found by measuring rather than by reading:
+
+* **data-quality findings**, one per malformed row: 2 400 bad rows produced a
+  240 KiB response;
+* **validation errors**, whose default 422 body carries pydantic's `input` key —
+  the rejected value itself. One 2 MB unexpected field produced a 2 000 113 byte
+  error body, amplification on the path that costs the server least;
+* **evidence**, **scenario supporting/counter evidence** and **Why reasons**,
+  which reached 1 388, 1 372 and 231 items respectively at the 2 500-row ceiling;
+* **support/resistance zones**, which reached 29 per timeframe.
+
+The last four were invisible until the measuring fixture changed. A price series
+that drifts almost monotonically produces almost no structure, so the first audit
+reported these as naturally fixed. A range-bound market revisits the same levels,
+and that is what makes structural collections grow — so the audit now uses an
+oscillating series, and it walks the response recursively rather than checking a
+remembered list of fields.
+
+Every cap is derived from the producing engine's own vocabulary rather than
+chosen for size — forty-eight evidence items per direction is exactly twelve
+categories times four timeframe roles — and every cap keeps **one of each kind
+before any repeat**, so a reader loses duplicates and never a kind. Evidence is
+capped per direction, because bull and bear are shown side by side and never
+netted: a single global cap could let a flood of one side push the other off the
+end, which would net them by accident. Each cap reports what it omitted.
+
+Safety-critical content is exempt by construction: `missing`, the suitability
+findings and the risk unavailability reasons have no cap at all, and a blocking
+data-quality finding is kept ahead of every warning. Truncation costs detail,
+never a warning.
+
+**An optional layer may not cost the analysis.** Also found by that audit: an
+oscillating series produced two evidence items identical in every field the
+synthesis context shows, the context correctly refused the duplicate reference
+id, and the `ValueError` left the route as a 500 — discarding a complete, correct
+deterministic analysis because a narration layer could not be built. Identical
+content is now one item, and context assembly is guarded so the whole class of
+failure degrades to a typed status instead.
+
+**A coarser timeframe may never be known through a later instant than a finer
+one.** A candle is an interval, not a moment, so each timeframe is described by
+`coverage_end = last open_time + interval`. Measured before this existed: a 1D
+series running to 2027-02-04 was accepted beside 5M data ending 2026-01-01 with
+no finding of any kind, and it changed the evidence — 11 bullish / 0 bearish
+became 9 / 3. The rule is directional because only one direction is a hazard: 5M
+fresher than 1D is normal, 1D fresher than 5M is a year of daily information the
+entry timeframe never saw. `analysis_as_of` is the maximum coverage end **among
+the survivors**, so a dataset from the future cannot drag the snapshot forward.
+
+The mirror case is allowed and reported. A finer timeframe running ahead is not
+lookahead, but it does mean the coarser reading is older than the instant the
+response is stamped with — 1H ending 2026-03-02 beside 5M ending 2026-03-05 was
+stamped 2026-03-05 with nothing saying the trend reading was three days old. Each
+timeframe now carries `coverage_end` and `bars_behind`, counted in its own bars,
+and a lag of a whole bar or more is stated in words. Zero is the ordinary case:
+a coarse bar that has not closed yet is not missing data.
+
+**What is analysed and what is drawn are different datasets.** The engines read
+the full supplied history; the chart receives the latest 400 authoritative
+candles under a declared `CHART_WINDOW_POLICY`, never a downsample — a drawn bar
+is always a bar the exchange produced. Overlays are sliced to exactly that window
+and carry `null` through the warm-up rather than a value nobody computed. The
+row limit behind this is measured, not guessed: 500 rows took 0.07 s and 4 000
+took 6.89 s, because Phase 2 zone building is quadratic. 2 500 per timeframe is
+where that cost stays acceptable, and the quadratic cost is recorded as debt
+rather than hidden by a larger limit.
+
+**The explanation layer reads; it never writes.** The Why projection calls the
+Phase 5 engine and renders its strings verbatim. It formats no number of its own
+— a structural test forbids rounding, `format(`, `Decimal(` and f-string
+interpolation in the module — so a value it never renders is a value it cannot
+get wrong. The API assembles it last and never reads it back, and a whole-response
+diff with the block present and absent proves every other field is identical.
+
 ## Cross-cutting decisions
 
 **Decimal at the data boundary, float inside the indicators.** Candle OHLCV

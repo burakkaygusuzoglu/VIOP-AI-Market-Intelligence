@@ -352,3 +352,31 @@ name = "API route and schema modules never reach into adapters directly"
 type = "forbidden"
 source_modules = ["app.api.routes", "app.api.schemas"]
 forbidden_modules = ["app.adapters", "sqlalchemy"]
+
+[[tool.importlinter.contracts]]
+# Phase 8. The analysis orchestrator's whole value is that it *orchestrates*:
+# every number it reports comes from an engine that already exists and is
+# already tested. A second implementation of an indicator or a sizing rule
+# living here would be a numerical authority nobody is checking.
+#
+# The first version of this package imported the CSV adapter directly and broke
+# the "application depends only on domain" contract. That was the contract
+# working: the file format is infrastructure, and it now arrives through the
+# `CandleTextParser` port.
+name = "The analysis orchestrator computes nothing itself"
+type = "forbidden"
+source_modules = ["app.application.analysis"]
+forbidden_modules = [
+    "app.adapters",
+    "app.api",
+    "app.domain.technical.momentum",
+    "app.domain.technical.smoothing",
+    "app.domain.technical.trend_strength",
+    "app.domain.technical.volatility",
+    "app.domain.technical.volume",
+    "app.domain.technical.vwap",
+    "app.domain.risk.margin",
+    "app.domain.risk.pnl",
+    "app.domain.risk.whatif",
+]
+allow_indirect_imports = true

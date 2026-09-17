@@ -1,0 +1,271 @@
+.shots {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.shots__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.shots__unconfigured {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-system);
+  background: var(--tint-system);
+  font-size: var(--text-sm);
+  max-width: 74ch;
+}
+
+.shots__note {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 74ch;
+}
+
+.shots__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.shot {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+@media (max-width: 720px) {
+  .shot {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.shot__label {
+  display: flex;
+  flex-direction: column;
+}
+
+.shot__label span {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.shot__body {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.shot__preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.shot__preview img {
+  max-width: 200px;
+  max-height: 120px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.shot__filename {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.shot__status {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.shot__status--error {
+  color: var(--color-system);
+  overflow-wrap: anywhere;
+}
+
+.shot__meta,
+.shot__agreement,
+.shot__unreadable {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* A mismatch is never a colour alone: the label already says UYUŞMUYOR. */
+.shot__agreement--mismatch {
+  color: var(--color-blocked);
+  font-weight: var(--weight-medium);
+}
+
+.shot__mismatches {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-4);
+  color: var(--color-blocked);
+  font-size: var(--text-sm);
+}
+
+.shot__observations {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.shot__observation {
+  border-left: 2px solid var(--color-provenance-observed);
+  padding-left: var(--space-3);
+  min-width: 0;
+}
+
+.shot__observation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.shot__field {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.shot__value {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.shot__kind {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.shot__confidence {
+  font-size: var(--text-xs);
+  color: var(--color-provenance-observed);
+}
+
+.shot__confidence--absent {
+  color: var(--color-text-muted);
+}
+
+.shot__confidence-note {
+  color: var(--color-text-muted);
+}
+
+.shot__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.shot__actions button {
+  min-height: 36px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+}
+
+.shot__edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.shot__edit input {
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px var(--space-3);
+  min-height: 36px;
+}
+
+.shot__error {
+  margin: var(--space-2) 0 0;
+  color: var(--color-blocked);
+  font-size: var(--text-sm);
+}
+
+.shot__outcome {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+}
+
+.shot__outcome dt {
+  color: var(--color-text-muted);
+}
+
+.shot__outcome dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.shot__rank {
+  font-family: var(--font-sans);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.shot__overridden {
+  color: var(--color-waiting);
+  font-family: var(--font-sans);
+}
+
+/* The scope disclosure. Prominent, because the section's placement inside the
+   analysis form is itself an implication that has to be corrected. */
+.shots__scope {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-waiting);
+  background: var(--tint-waiting);
+  font-size: var(--text-sm);
+  max-width: 74ch;
+}
+
+.shot__reanalyse {
+  margin-top: var(--space-3);
+  min-height: 40px;
+  font-size: var(--text-sm);
+}
+
+/* Which artifact was read. Never inferred from the preview - the dimensions
+   come from the server's own response. */
+.shot__analysed {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-focus);
+  background: var(--tint-muted);
+  font-size: var(--text-sm);
+  max-width: 74ch;
+  overflow-wrap: anywhere;
+}

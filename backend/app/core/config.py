@@ -125,6 +125,16 @@ class Settings(BaseSettings):
 
     synthesis_max_context_entries: int = Field(default=120, gt=0)
 
+    max_request_bytes: int = Field(default=48 * 1024 * 1024, gt=0)
+    """Outer ceiling on an HTTP request body, enforced before it is read.
+
+    Distinct from every per-field limit: those decide what an *analysis* will
+    accept and answer with a typed domain error. This decides what the
+    *process* will hold, and is enforced in ASGI before a body exists. A
+    measured 64 MiB request was previously materialised in full before the
+    8 MiB per-dataset check rejected it.
+    """
+
     @property
     def synthesis_is_configured(self) -> bool:
         """Whether a synthesis call could be attempted at all.

@@ -1,0 +1,148 @@
+.chart {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-3);
+  min-width: 0;
+}
+
+.chart--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+
+.chart__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* The SVG scales to its container rather than the page scrolling sideways:
+   §39 requires chart overflow to be contained deliberately. */
+.chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1000 / 360;
+  overflow: visible;
+}
+
+.chart__wick {
+  stroke-width: 1;
+}
+
+.chart__candle--up .chart__wick,
+.chart__candle--up .chart__body {
+  stroke: var(--color-bullish);
+  fill: var(--color-bullish);
+}
+
+.chart__candle--down .chart__wick,
+.chart__candle--down .chart__body {
+  stroke: var(--color-bearish);
+  fill: var(--color-bearish);
+}
+
+/* A bar that has not closed is drawn hollow, so a forming candle is never
+   mistaken for a settled one (§16). The distinction is also stated in text in
+   the timeframe ladder - the outline is a second signal, not the only one. */
+.chart__candle[data-forming='true'] .chart__body {
+  fill: transparent;
+  stroke-width: 1.5;
+}
+
+.chart__zone {
+  opacity: 0.16;
+}
+
+.chart__zone--support {
+  fill: var(--color-bullish);
+}
+
+.chart__zone--resistance {
+  fill: var(--color-bearish);
+}
+
+.chart__caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.chart__legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chart__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  opacity: 0.5;
+}
+
+.chart__swatch--support {
+  background: var(--color-bullish);
+}
+
+.chart__swatch--resistance {
+  background: var(--color-bearish);
+}
+
+/* The window disclosure. Muted but never hidden: a chart that silently draws
+   a fraction of what was analysed is describing itself, not the data. */
+.chart__window {
+  color: var(--color-waiting);
+}
+
+/* Indicator overlays. Thin and low-contrast on purpose: the candles are the
+   measurement, an overlay is context drawn on top of it. */
+.chart__overlay-line {
+  fill: none;
+  stroke-width: 1.25;
+  opacity: 0.85;
+}
+
+.chart__overlay--0 .chart__overlay-line,
+.chart__swatch--0 {
+  stroke: var(--color-neutral);
+  background: var(--color-neutral);
+}
+
+.chart__overlay--1 .chart__overlay-line,
+.chart__swatch--1 {
+  stroke: var(--color-provenance-inferred);
+  background: var(--color-provenance-inferred);
+}
+
+.chart__overlay--2 .chart__overlay-line,
+.chart__swatch--2 {
+  stroke: var(--color-waiting);
+  background: var(--color-waiting);
+}
+
+.chart__overlay--3 .chart__overlay-line,
+.chart__swatch--3 {
+  stroke: var(--color-text-muted);
+  background: var(--color-text-muted);
+}
+
+.chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.chart__swatch--overlay {
+  height: 2px;
+  border-radius: 0;
+  opacity: 1;
+}

@@ -1,0 +1,81 @@
+.action-card {
+  border: 1px solid var(--color-border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-4) var(--space-5);
+  box-shadow: var(--elevation-1);
+}
+
+.action-card__kicker {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.action-card__headline {
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+  /* Long system headlines must wrap, not overflow, on a narrow screen. */
+  overflow-wrap: anywhere;
+}
+
+.action-card__meaning,
+.action-card__detail {
+  margin: 0 0 var(--space-2);
+  max-width: 62ch;
+}
+
+.action-card__detail {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.action-card__allowed {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.action-card__allowed-label {
+  font-weight: var(--weight-medium);
+}
+
+/* Tone is carried by the left border and a faint tint. WAIT is amber and
+   NO_TRADE is red on purpose: they must not read as the same verdict. */
+.action-card--bullish {
+  border-left-color: var(--color-bullish);
+  background: linear-gradient(var(--tint-bullish), var(--tint-bullish)), var(--color-surface);
+}
+
+.action-card--bearish {
+  border-left-color: var(--color-bearish);
+  background: linear-gradient(var(--tint-bearish), var(--tint-bearish)), var(--color-surface);
+}
+
+.action-card--waiting {
+  border-left-color: var(--color-waiting);
+  background: linear-gradient(var(--tint-waiting), var(--tint-waiting)), var(--color-surface);
+}
+
+.action-card--blocked {
+  border-left-color: var(--color-blocked);
+  background: linear-gradient(var(--tint-blocked), var(--tint-blocked)), var(--color-surface);
+}
+
+/* System states are blue and deliberately undirectional - nothing here should
+   read as bullish or bearish. */
+.action-card--system {
+  border-left-color: var(--color-system);
+  background: linear-gradient(var(--tint-system), var(--tint-system)), var(--color-surface);
+}
+
+.action-card--system .action-card__headline {
+  font-size: var(--text-xl);
+}

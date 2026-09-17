@@ -1,0 +1,35 @@
+.numeric-fact {
+  display: contents;
+}
+
+.numeric-fact__label {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.numeric-fact__body {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+}
+
+.numeric-fact__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.numeric-fact__raw {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.numeric-fact__raw code {
+  font-family: var(--font-mono);
+  /* Long raw floats must wrap rather than push the layout sideways. */
+  word-break: break-all;
+}

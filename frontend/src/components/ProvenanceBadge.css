@@ -1,0 +1,41 @@
+.provenance {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--tint-muted);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.provenance__mark {
+  font-size: 9px;
+}
+
+.provenance__caveat {
+  color: var(--color-text-muted);
+}
+
+/* Colour is a secondary cue only. Every badge already states its origin in
+   words, so removing colour entirely would lose nothing but emphasis. */
+.provenance--calculated {
+  border-color: color-mix(in srgb, var(--color-provenance-calculated) 40%, var(--color-border));
+  color: var(--color-provenance-calculated);
+}
+
+.provenance--observed {
+  border-color: color-mix(in srgb, var(--color-provenance-observed) 40%, var(--color-border));
+  color: var(--color-provenance-observed);
+}
+
+.provenance--inferred {
+  border-color: color-mix(in srgb, var(--color-provenance-inferred) 40%, var(--color-border));
+  color: var(--color-provenance-inferred);
+}
+
+.provenance--unverified {
+  color: var(--color-provenance-unverified);
+}

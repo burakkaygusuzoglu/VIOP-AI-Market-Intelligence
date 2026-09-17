@@ -1,0 +1,58 @@
+.mode-toggle {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.mode-toggle__legend {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0 var(--space-1);
+}
+
+.mode-toggle__option {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  /* Comfortably above the 24px WCAG 2.2 target minimum, and closer to 44px
+     on touch once padding and line-height are counted. */
+  min-height: 40px;
+}
+
+.mode-toggle__option:hover {
+  background: var(--tint-muted);
+}
+
+.mode-toggle__option:has(input:checked) {
+  background: var(--tint-system);
+}
+
+.mode-toggle__label {
+  font-weight: var(--weight-medium);
+}
+
+.mode-toggle__hint {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 480px) {
+  .mode-toggle {
+    flex-direction: column;
+  }
+
+  .mode-toggle__hint {
+    margin-left: auto;
+  }
+}

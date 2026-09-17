@@ -376,11 +376,32 @@ def _to_context_evidence(
 ) -> tuple[ContextEvidence, ...]:
     ordered = sorted(items, key=_evidence_sort_key)
     built: list[ContextEvidence] = []
+    seen: set[str] = set()
     for item in ordered:
+        ref_id = content_ref_id(kind, *_evidence_sort_key(item))
+
+        # Identical content is one fact, not two.
+        #
+        # The ref id is derived from exactly the fields the context shows -
+        # category, source, timeframe, role and reason - so two items that
+        # collide here are indistinguishable to anything downstream. Measured:
+        # an oscillating series produced two neutral items whose five fields
+        # matched, the context refused the duplicate id, and the `ValueError`
+        # cost the caller a complete deterministic analysis.
+        #
+        # Dropping the repeat is the honest resolution rather than making ids
+        # unique again: showing one fact twice would also double its apparent
+        # weight in a list the model is asked to reason over. The first in
+        # canonical order is kept, so the choice does not depend on collection
+        # order.
+        if ref_id in seen:
+            continue
+        seen.add(ref_id)
+
         ref = ContextRef(
             # Identity from content, never from position - see the note in
             # `references.py` on why a counter renumbered everything.
-            ref_id=content_ref_id(kind, *_evidence_sort_key(item)),
+            ref_id=ref_id,
             kind=kind,
             label=f"{item.category.value} / {item.source.value}",
             authority=authority,

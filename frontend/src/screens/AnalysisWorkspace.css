@@ -1,0 +1,148 @@
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.workspace__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.workspace__symbol {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  overflow-wrap: anywhere;
+}
+
+.workspace__as-of {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.workspace__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.workspace__ephemeral {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-waiting);
+  max-width: 34ch;
+}
+
+.workspace__primary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+/* The chart takes the width it needs; the intelligence panel sits beside it on
+   a workstation and below it otherwise. */
+.workspace__main {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .workspace__main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace__primary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.workspace__chart,
+.workspace__summary,
+.workspace__facts,
+.workspace__missing,
+.workspace__audit {
+  min-width: 0;
+}
+
+.workspace__summary,
+.workspace__facts,
+.workspace__missing,
+.workspace__audit {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-4);
+}
+
+.workspace__intelligence {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.workspace__heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.workspace__chart-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.workspace__timeframes {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.workspace__timeframe {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding: var(--space-2) var(--space-3);
+  min-height: 36px;
+}
+
+.workspace__timeframe[aria-pressed='true'] {
+  border-color: var(--color-neutral);
+  color: var(--color-neutral);
+}
+
+.workspace__facts-grid {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.workspace__missing-list {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.workspace__missing-list li {
+  overflow-wrap: anywhere;
+}

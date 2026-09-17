@@ -1,0 +1,102 @@
+.crop {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .crop {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.crop__frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  max-width: 240px;
+}
+
+.crop__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: center;
+  transition: transform 120ms ease-out;
+}
+
+/* The outline draws the region the numbers describe. Decoration only: it sits
+   over the preview and has no relationship to the uploaded bytes. */
+.crop__outline {
+  position: absolute;
+  border: 2px solid var(--color-focus);
+  background: rgb(126 231 135 / 10%);
+  pointer-events: none;
+}
+
+.crop__controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.crop__zoom label,
+.crop__region legend {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.crop__hint {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.crop__zoom input[type='range'] {
+  width: 100%;
+  max-width: 260px;
+}
+
+.crop__region {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  margin: 0;
+  min-width: 0;
+}
+
+.crop__inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6.5rem), 1fr));
+  gap: var(--space-2);
+}
+
+.crop__inputs label {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.crop__inputs input {
+  width: 100%;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px var(--space-2);
+  min-height: 36px;
+}
+
+.crop__reset {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  min-height: 36px;
+}

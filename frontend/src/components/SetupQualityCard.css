@@ -1,0 +1,85 @@
+.quality {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-4);
+}
+
+.quality__heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.quality__value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  flex-wrap: wrap;
+}
+
+.quality__score {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.quality__kind {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Segments, not a filling bar: a progress bar implies advancing towards a
+   certain outcome, which is exactly the wrong idea here. */
+.quality__gauge {
+  display: flex;
+  gap: 3px;
+  margin-bottom: var(--space-3);
+}
+
+.quality__segment {
+  height: 6px;
+  flex: 1;
+  border-radius: 1px;
+  background: var(--color-border);
+}
+
+.quality__segment--on {
+  background: var(--color-neutral);
+}
+
+.quality__caveat {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 52ch;
+}
+
+.quality__tag,
+.quality__missing {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.quality__tag-note {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Monospace marks it as a machine constant rather than prose a translator
+   forgot. */
+.quality__tag-value {
+  font-family: var(--font-mono);
+  color: var(--color-text);
+}
+
+/* A missing score is a sentence to read, not a tag to glance past. */
+.quality__missing {
+  color: var(--color-text);
+}

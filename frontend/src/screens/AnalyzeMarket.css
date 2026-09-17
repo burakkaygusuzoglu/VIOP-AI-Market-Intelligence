@@ -1,0 +1,194 @@
+.analyze {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.analyze__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xl);
+}
+
+.analyze__intro {
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-muted);
+  max-width: 72ch;
+}
+
+.analyze__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.analyze__section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  margin: 0;
+  min-width: 0;
+}
+
+.analyze__section legend {
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.analyze label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.analyze input[type='text'],
+.analyze input:not([type]) {
+  width: 100%;
+}
+
+.analyze input {
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  /* 40px keeps the control above the ~44px touch-target guidance once its
+     border and the surrounding gap are counted (§38). */
+  padding: 10px var(--space-3);
+  min-height: 40px;
+  max-width: 100%;
+}
+
+.analyze__note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 74ch;
+}
+
+.analyze__timeframes {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.analyze__timeframe {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .analyze__timeframe {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.analyze__timeframe-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.analyze__timeframe-label span {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.analyze__file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.analyze__file-name {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.analyze__file-rows,
+.analyze__file--empty {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.analyze__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-3);
+}
+
+.analyze__summary {
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-neutral);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  background: var(--tint-system);
+}
+
+.analyze__summary h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.analyze__summary-list {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.analyze__error {
+  margin: 0;
+  color: var(--color-blocked);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.analyze__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.analyze__submit {
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+  border-color: var(--color-neutral);
+  min-height: 44px;
+  padding: 0 var(--space-5);
+}
+
+.analyze__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: var(--color-border);
+}
+
+/* The scope caveat beside a capability in the pre-submit summary.
+
+   Deliberately not dimmed into near-invisibility: it is the sentence that stops
+   a user assuming an uploaded chart took part in the analysis, so it keeps the
+   body colour and is distinguished by italics alone. */
+.analyze__scope {
+  color: var(--color-text);
+  font-style: italic;
+}

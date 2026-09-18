@@ -328,6 +328,63 @@ forbidden_modules = [
 ]
 
 [[tool.importlinter.contracts]]
+# Phase 10. Performance summarises outcomes; it must not know what produced them.
+# Importing the paper domain would tie every metric to one simulator, and a future
+# replay or backtest would have to either duplicate the metrics or pretend to be
+# paper trading. Importing a product implementation would put futures arithmetic
+# inside a layer that only adds up amounts other engines already computed.
+name = "The performance domain depends on no product, simulator or analysis engine"
+type = "forbidden"
+source_modules = ["app.domain.performance", "app.domain.journal"]
+forbidden_modules = [
+    "app.domain.futures",
+    "app.domain.paper",
+    "app.domain.risk",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+
+[[tool.importlinter.contracts]]
+# Phase 10. Nothing underneath may consume performance: a risk engine or a paper
+# position that could read its own win rate would let yesterday's statistics feed
+# today's simulated decision.
+name = "Nothing beneath performance depends on it"
+type = "forbidden"
+source_modules = [
+    "app.domain.common",
+    "app.domain.instrument",
+    "app.domain.market",
+    "app.domain.risk",
+    "app.domain.futures",
+    "app.domain.paper",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+forbidden_modules = ["app.domain.performance", "app.domain.journal"]
+
+[[tool.importlinter.contracts]]
+# Phase 10. The performance use cases reach storage only through their ports, so
+# the calculator is never coupled to PostgreSQL and a future outcome source can
+# implement the same protocol.
+name = "The performance application layer reaches storage only through its ports"
+type = "forbidden"
+source_modules = ["app.application.performance"]
+forbidden_modules = [
+    "app.adapters",
+    "app.api",
+    "sqlalchemy",
+    "app.domain.futures",
+]
+
+[[tool.importlinter.contracts]]
 # Phase 9. Paper trading consumes the risk engine and the product boundary; nothing
 # consumes paper state back. A risk figure that could read a simulated position -
 # or an analysis that knew a paper trade was open - would let a simulation feed

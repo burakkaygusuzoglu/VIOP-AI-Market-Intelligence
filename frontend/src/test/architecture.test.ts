@@ -64,9 +64,31 @@ describe('no financial calculation in the frontend', () => {
         'function positionSize',
         'function calculateRisk',
         'function computePnl',
+        // Phase 10. Performance metrics are server-derived; a second
+        // implementation here is how a dashboard starts disagreeing with the
+        // ledger it claims to describe.
+        'function computeWinRate',
+        'function calculateWinRate',
+        'function computeProfitFactor',
+        'function computeExpectancy',
+        'function computeDrawdown',
+        'function calculateDrawdown',
+        'function computeStreak',
+        'function computeRMultiple',
       ]) {
         expect(text, shortName(file)).not.toContain(banned);
       }
+    }
+  });
+
+  it('accumulates no cumulative curve of its own (Phase 10)', () => {
+    // The timeline arrives with each point's cumulative value already computed.
+    // Re-accumulating it in the browser is how a chart and a table drift apart.
+    for (const file of PRODUCTION) {
+      const text = read(file);
+      expect(text, shortName(file)).not.toMatch(/cumulative\s*\+=/);
+      expect(text, shortName(file)).not.toMatch(/running\s*\+=\s*Number/);
+      expect(text, shortName(file)).not.toMatch(/reduce\([^)]*cumulative/);
     }
   });
 

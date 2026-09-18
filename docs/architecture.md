@@ -134,7 +134,19 @@ Declared as import-linter contracts in `backend/pyproject.toml` and executed by
     `app.application.paper` may not import `app.domain.futures`,
     `app.application.analysis`, adapters or the API. *(Phase 9)*
 
-Twenty-two contracts; this list and `backend/pyproject.toml` have the same
+23. **The performance domain depends on no product, simulator or analysis
+    engine** — `app.domain.performance` and `app.domain.journal` may not import
+    `app.domain.paper`, `app.domain.futures`, `app.domain.risk` or any analysis
+    engine. Performance summarises outcomes; it must not know what produced
+    them, so a future replay or backtest can supply the same records. *(Phase 10)*
+24. **Nothing beneath performance depends on it** — no domain package may import
+    `app.domain.performance` or `app.domain.journal`, so yesterday's statistics
+    cannot feed today's simulated decision. *(Phase 10)*
+25. **The performance application layer reaches storage only through its ports**
+    — `app.application.performance` may not import adapters, the API, SQLAlchemy
+    or the futures domain. *(Phase 10)*
+
+Twenty-five contracts; this list and `backend/pyproject.toml` have the same
 count. These are verified to actually fail when violated; the check is not
 decorative.
 
@@ -179,6 +191,9 @@ backend/app/
 │   ├── strategies/    strategy configs, router              (phase 5+)
 │   ├── paper/         paper positions, simulation rules,
 │   │                  lifecycle engine, event replay        [Phase 9]
+│   ├── performance/   populations, outcome basis, metrics,
+│   │                  drawdown, streaks, breakdowns         [Phase 10]
+│   ├── journal/       user notes and tags, bounds           [Phase 10]
 │   └── backtest/      historical evaluation                 (phase 12)
 ├── application/
 │   ├── ports/         market_data, ai, system, screenshot   [Phase 0/1/6]
@@ -1409,8 +1424,179 @@ The architecture test bans order/broker vocabulary (`placeOrder`,
 
 Live or delayed data feeds, limit/stop-limit entry models, partial fills on
 volume, commission schedules, margin calls on paper positions, linkage from an
-analysis snapshot to a position, portfolio aggregation, a trade journal and
-performance statistics (Phase 10+).
+analysis snapshot to a position, portfolio aggregation. The trade journal and
+performance statistics arrived in Phase 10 (below); analysis linkage did not.
+
+## Journal and performance intelligence (Phase 10)
+
+Phase 10 answers "how did the simulated trades go?" without acquiring a second
+opinion about what happened. It adds no financial calculation: every amount it
+reports was written by the Phase 9 engine, and every metric is an aggregate of
+those amounts, computed in one pure module.
+
+    adapters/performance/paper_source.py    folds the append-only ledger into
+            │                               authoritative PositionOutcome records
+            ▼
+    application/performance                 bounds the request, then hands the
+            │   ports: PerformanceSource ·  records to the engine; owns the
+            │          JournalStore         journal use cases
+            ▼
+    domain/performance                      pure metrics: populations, outcome,
+                                            win rate, expectancy, drawdown, streaks
+    domain/journal                          what a person may write, and its limits
+
+    api/routes/performance.py   /api/paper/performance · /performance/breakdowns
+                                /journal · /journal/tags · /positions/{id}/journal
+
+### Where each analytics input comes from
+
+Phase 9 established that `paper_positions` is a projection and not financial
+authority. Phase 10 therefore reads **only the ledger**:
+
+| Fact | Source |
+| --- | --- |
+| symbol, asset class, direction, quantity, timeframe, fee mode | `POSITION_CREATED`, frozen at open |
+| each fill's gross amount and fee | `TARGET_FILLED` · `STOP_FILLED` · `MANUAL_EXIT_FILLED` |
+| final realized gross, fees, net, and the terminal market time | `POSITION_CLOSED` |
+| never entered | `ENTRY_REJECTED` · `POSITION_CANCELLED` |
+| current mark of a still-open position | Phase 9's verified read (`PaperTradingService.get`), which replays the ledger and refuses on disagreement |
+
+Only bar observations are skipped, so the cost of analytics does not grow with
+how many bars a position was fed. A test proves the folded record equals what a
+full verified rebuild produces, and another corrupts every projection column and
+requires every number to stay the same.
+
+### One position is one trade
+
+A position that exited through two targets and a stop produced three fills and
+**one** trade-level sample. Fill counts are reported separately and never enter
+a trade count, a win-rate denominator, a streak or an expectancy sample.
+
+Populations are explicit, and every metric states the one it used:
+
+| Population | In the trade sample? |
+| --- | --- |
+| `CLOSED` | yes - the only one |
+| `OPEN`, `PARTIALLY_CLOSED`, `AMBIGUOUS_HALTED` | no: entered, still exposed |
+| `PENDING_ENTRY`, `CANCELLED`, `REJECTED` | no: never entered, never a loss |
+
+### Basis: gross, net, or neither
+
+Fees may be deliberately not modelled, in which case net is *unknown*, not zero.
+So the basis is chosen from the selection's own coverage and reported with it:
+
+* every completed position modelled fees → **REALIZED_NET**;
+* otherwise → **REALIZED_GROSS**, with a sentence naming the coverage;
+* a net *total* over a partly-costed population is `PARTIAL_COVERAGE` with no
+  value, never a sum of the costed part;
+* a user-defined fee of **0** is modelled - it is not the same state as
+  `NOT_MODELLED`, and the two produce different answers.
+
+Nothing is dropped: gross still covers every completed position, and the fees
+that were modelled are reported with their own coverage.
+
+### Metrics, and the ones deliberately absent
+
+Win rate is wins over completed entered positions, with numerator and
+denominator beside it; an exact zero is a **breakeven** and stays in the
+denominator. Average win and average loss are separate magnitudes and are
+unavailable when there are none of that kind. Profit factor is gains over
+losses - with no losses it has no finite value and says so rather than sending
+`Infinity`. Expectancy is the mean realized result per completed position,
+always with its sample size, and is described as a summary of the past, never a
+forecast.
+
+Drawdown is the largest peak-to-trough fall of the **cumulative realized**
+curve, in simulated money. It is not a percentage: that would need a capital
+timeline this application does not have. The curve itself is called *cumulative
+realized P&L* rather than account equity, and nothing from an open position is
+inserted into it.
+
+Reported as unavailable, each with its reason: percentage drawdown, realized R
+expectancy (the risk approval, the planned stop distance and the realized
+entry-to-stop distance are three different quantities, and choosing between them
+would be a guess), MAE and MFE (bar OHLC records no order inside a bar), Sharpe,
+Sortino and annualised return (no capital base, no return series, no sampling
+convention). Setup, regime and AI-verdict breakdowns do not exist either:
+positions are `USER_CREATED` and no analysis snapshot is persisted, so there is
+nothing authoritative to group by.
+
+### Completed trades and realized money are different questions
+
+A position that took one target and still holds the rest has **realized that
+money** and has **not finished a trade**. Both are true, so the response carries
+both, separately:
+
+* *trade-level statistics* - win rate, expectancy, profit factor, streaks,
+  drawdown, the timeline - are computed from completed positions only;
+* *realized accounting* - `realized_accounting` - sums every fill that has
+  already happened, whatever state its position is in, and reports how many came
+  from completed and from still-open positions.
+
+Neither can hide the other: a partial exit never increments a trade count, and a
+still-open position never conceals money it has already made.
+
+Outcome facts belong to their position. A completed position reports
+`outcome_gross` and, when its fees were modelled, `outcome_net` - each computed
+from that position alone, so adding an unrelated trade to a filter can never
+turn a recorded loss into a win. The *aggregate* basis may still switch between
+gross and net as coverage changes, and it is stated in every response.
+
+### Time, ordering and filters
+
+Three rules, applied consistently and named in every response:
+
+| Population | What a date range selects by |
+| --- | --- |
+| Completed trades | the **market time of the closing fill** |
+| Realized accounting | the **market time of each fill**, so a partial exit belongs to the range containing it, not to the position's eventual close |
+| Open exposure and unrealized P&L | nothing - they are as of each position's last observed bar, and a date range never hides what is open now |
+
+Never `created_at`, `updated_at` or request time. Ordering is `(terminal market
+time, position id)`, so two trades closing on the same bar still order
+deterministically and a curve never depends on database row order. The same
+parsed filters drive the summary, the breakdowns, the timeline and the journal
+list, so a filtered chart cannot sit beside unfiltered headline numbers.
+
+### Bounds
+
+An analysis covers at most 2 000 positions; beyond that the request is refused
+with its size rather than answered from the first N, because an aggregate over
+part of a range is not that range's aggregate.
+
+A breakdown that exceeds its row bound is **not** silently shortened: each set
+travels with `total`, `returned`, `omitted` and `is_complete`, the headline
+totals continue to describe the whole population rather than the displayed rows,
+and the screen prints the shortfall. Tag suggestions carry the same flag.
+
+Open positions need their current mark, which is not a ledger fact. It comes
+from a replay of their own ledgers - verified against the stored row exactly as
+Phase 9's read verifies it - performed for **all** open positions in two
+statements rather than one request each. Measured on this machine: 1 000
+completed positions summarise in 91 ms, and 50 open positions alongside them in
+109 ms, in five statements either way (a count, the ids, their financial events,
+then the open rows and their events). Above 50 open positions the unrealized
+total is reported unavailable rather than replaying an unbounded number of
+ledgers. Journal pages hold at most 50 rows and tag lists 100.
+
+### The journal is mutable; the ledger is not
+
+`paper_journal_annotations` holds a note (≤ 4 000 characters), up to 12 tags
+(≤ 32 characters each, normalised, de-duplicated, sorted), a version and two
+audit stamps. Tags are compared case- and whitespace-insensitively, so
+"Breakout" and "breakout " are one tag. Both note and tags are `USER_AUTHORED`:
+a tag saying "breakout" records that a person typed the word, not that the
+structure engine found one.
+
+Concurrency is optimistic: a write carries the version it was read at and
+applies only if the row is still there, so a second editor is told rather than
+silently overwriting the first. There is no edit history - a note has one
+current value plus `created_at` and `updated_at`. Nothing in the journal path can
+reach a fill, an amount, a state or a provenance, and the API body has no field
+for one.
+
+Phase 10 adds exactly one table and no cache of computed metrics: a second store
+of financial numbers is a second thing to be wrong.
 
 ## Cross-cutting decisions
 

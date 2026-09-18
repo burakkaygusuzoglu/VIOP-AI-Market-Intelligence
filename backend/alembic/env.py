@@ -14,7 +14,10 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from app.adapters.persistence import paper_models  # noqa: F401  (registers Phase 9 tables)
+from app.adapters.persistence import (
+    journal_models,  # noqa: F401  (registers Phase 10 table)
+    paper_models,  # noqa: F401  (registers Phase 9 tables)
+)
 from app.adapters.persistence.base import Base
 from app.core.config import get_settings
 from app.core.runtime import configure_event_loop_policy

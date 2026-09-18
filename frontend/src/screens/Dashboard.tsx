@@ -35,18 +35,20 @@ const FUTURE_MODULES = [
     reason: 'Canlı veri mimarisi bu fazda değil.',
   },
   {
-    name: 'İşlem günlüğü ve performans',
-    phase: 'Faz 10',
-    reason: 'Kağıt işlemler kaydedilir, ancak günlük ve performans analizi sonraki fazdır.',
+    name: 'Strateji ve kurulum performansı',
+    phase: 'Sonraki faz',
+    reason:
+      'Pozisyonlar bir analize bağlı olarak kaydedilmediği için kurulum/rejim performansı türetilemez.',
   },
 ] as const;
 
 export interface DashboardProps {
   readonly onAnalyse: () => void;
   readonly onPaper: () => void;
+  readonly onPerformance: () => void;
 }
 
-export function Dashboard({ onAnalyse, onPaper }: DashboardProps) {
+export function Dashboard({ onAnalyse, onPaper, onPerformance }: DashboardProps) {
   return (
     <div className="dashboard-screen">
       <section className="dashboard-screen__hero" aria-labelledby="dashboard-heading">
@@ -62,6 +64,9 @@ export function Dashboard({ onAnalyse, onPaper }: DashboardProps) {
         </button>
         <button type="button" className="dashboard-screen__secondary" onClick={onPaper}>
           KAĞIT İŞLEM (SİMÜLASYON)
+        </button>
+        <button type="button" className="dashboard-screen__secondary" onClick={onPerformance}>
+          PERFORMANS VE GÜNLÜK (SİMÜLASYON)
         </button>
         <p className="dashboard-screen__intro">
           Kağıt işlemler yalnızca simülasyondur: gerçek emir oluşturulmaz veya gönderilmez.

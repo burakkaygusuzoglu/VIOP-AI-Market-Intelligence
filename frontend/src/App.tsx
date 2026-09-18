@@ -9,6 +9,7 @@ import { AnalysisWorkspace, type ExperienceMode } from './screens/AnalysisWorksp
 import { AnalyzeMarket } from './screens/AnalyzeMarket';
 import { Dashboard } from './screens/Dashboard';
 import { PaperTrading } from './screens/PaperTrading';
+import { PerformanceScreen } from './screens/Performance';
 import { useTranslations } from './i18n';
 
 /**
@@ -43,7 +44,7 @@ import { useTranslations } from './i18n';
  * it arrive anyway, ignored.
  */
 
-type Screen = 'dashboard' | 'analyze' | 'workspace' | 'paper';
+type Screen = 'dashboard' | 'analyze' | 'workspace' | 'paper' | 'performance';
 
 export function App() {
   const t = useTranslations();
@@ -120,10 +121,18 @@ export function App() {
       </header>
 
       {screen === 'dashboard' && (
-        <Dashboard onAnalyse={() => setScreen('analyze')} onPaper={() => setScreen('paper')} />
+        <Dashboard
+          onAnalyse={() => setScreen('analyze')}
+          onPaper={() => setScreen('paper')}
+          onPerformance={() => setScreen('performance')}
+        />
       )}
 
       {screen === 'paper' && <PaperTrading mode={mode} />}
+
+      {screen === 'performance' && (
+        <PerformanceScreen mode={mode} onBack={() => setScreen('dashboard')} />
+      )}
 
       {screen === 'analyze' && (
         <AnalyzeMarket

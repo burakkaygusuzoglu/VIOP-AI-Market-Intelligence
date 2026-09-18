@@ -84,9 +84,13 @@ describe('the dashboard is the entry point', () => {
   it('lists future modules as unavailable rather than faking them', () => {
     renderApp();
 
-    // Phase 9 shipped paper positions; the journal and performance are Phase 10.
-    expect(screen.getByText('İşlem günlüğü ve performans')).toBeInTheDocument();
-    expect(screen.getAllByText('Faz 10').length).toBeGreaterThan(0);
+    // Phase 9 shipped paper positions and Phase 10 their journal and
+    // performance, so neither is listed as missing any more. What remains
+    // unavailable is setup and regime performance, because positions are not
+    // linked to a persisted analysis.
+    expect(screen.getByText('Strateji ve kurulum performansı')).toBeInTheDocument();
+    expect(screen.queryByText('İşlem günlüğü ve performans')).not.toBeInTheDocument();
+    expect(screen.getByText('İzleme listesi')).toBeInTheDocument();
     expect(screen.queryByText('Kağıt pozisyonlar')).not.toBeInTheDocument();
   });
 

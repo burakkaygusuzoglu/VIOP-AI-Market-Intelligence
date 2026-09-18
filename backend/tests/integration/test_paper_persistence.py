@@ -72,7 +72,14 @@ class TestSchema:
                     )
                 ).scalars()
             )
-        assert names == {"alembic_version", "paper_positions", "paper_position_events"}
+        # Phase 10 added exactly one table, for user-authored journal text.
+        # No table caches a metric: performance is computed from the ledger.
+        assert names == {
+            "alembic_version",
+            "paper_positions",
+            "paper_position_events",
+            "paper_journal_annotations",
+        }
 
     async def test_money_columns_are_exact_numeric(self, database: Database) -> None:
         async with database.engine.connect() as connection:

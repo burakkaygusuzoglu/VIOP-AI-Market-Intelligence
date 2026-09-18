@@ -41,13 +41,25 @@ export async function getJson<TSchema extends z.ZodTypeAny>(
   }
 
   const parsed = schema.safeParse(payload);
-  if (!parsed.success) {
-    throw new ApiError(
-      `response did not match the expected schema: ${parsed.error.message}`,
-      response.status,
-    );
+  if (parsed.success) return parsed.data;
+
+  // The body is not what this endpoint returns. If the status also says the
+  // request failed, it is a typed refusal - a range too large, a store
+  // unavailable - and its own sentence is what a person needs to read. Without
+  // this it surfaced as "response did not match the expected schema", which
+  // describes the transport rather than the answer.
+  //
+  // Order matters: readiness answers 503 with a *valid* health body, and that
+  // must still parse. So the schema is tried first, and the status only decides
+  // how to report a body that did not match.
+  if (!response.ok) {
+    throw new ApiError(detailOf(payload) ?? `request failed (${response.status})`, response.status);
   }
-  return parsed.data;
+
+  throw new ApiError(
+    `response did not match the expected schema: ${parsed.error.message}`,
+    response.status,
+  );
 }
 
 /**

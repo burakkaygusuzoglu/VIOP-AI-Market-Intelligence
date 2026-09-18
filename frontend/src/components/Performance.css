@@ -1,0 +1,371 @@
+/* Performance and journal (Phase 10). Meaning is carried by words; colour only repeats it. */
+
+.perf-screen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+/*
+ * Grid children shrink rather than being pushed wide by a nowrap table: the
+ * Phase 9 closeout found exactly this making a page scroll sideways at 320px.
+ */
+.perf-screen > *,
+.perf-overview > *,
+.perf-breakdowns > *,
+.journal-panel > *,
+.journal-entry > * {
+  min-width: 0;
+}
+
+.perf-screen__banner {
+  border: 1px solid var(--color-waiting);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: linear-gradient(var(--tint-waiting), var(--tint-waiting)), var(--color-surface);
+  padding: var(--space-3) var(--space-4);
+}
+
+.perf-screen__banner p {
+  margin: 0;
+  max-width: 80ch;
+}
+
+.perf-screen__banner-title {
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-1) !important;
+}
+
+.perf-screen__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.perf-filters {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  min-width: 0;
+}
+
+.perf-filters__rule {
+  margin: 0;
+  color: var(--color-text-muted);
+  max-width: 80ch;
+}
+
+.perf-filters__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.perf-filters__grid > div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.perf-filters input,
+.perf-filters select {
+  min-height: 36px;
+  max-width: 100%;
+}
+
+.perf-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.perf-tab {
+  min-height: 40px;
+}
+
+.perf-tab--active {
+  font-weight: var(--weight-bold);
+  border-bottom: 3px solid var(--color-accent, var(--color-waiting));
+}
+
+.perf-overview,
+.perf-breakdowns,
+.journal-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-4);
+}
+
+.perf-overview__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.perf-overview h3,
+.perf-breakdowns h3,
+.journal-panel h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.perf-basis,
+.perf-coverage,
+.perf-streak,
+.perf-timeline__note,
+.perf-linkage,
+.journal-footnote {
+  margin: 0;
+  color: var(--color-text-muted);
+  max-width: 80ch;
+}
+
+.perf-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.perf-metric {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.perf-metric dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.perf-metric dd {
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.perf-metric__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+.perf-metric__status {
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-waiting);
+}
+
+.perf-metric__reason,
+.perf-metric__hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* An unavailable metric is marked by its border and its words, never by colour alone. */
+.perf-metric--unavailable,
+.perf-metric--partial_coverage,
+.perf-metric--not_implemented {
+  border-style: dashed;
+}
+
+.perf-counts ul {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-5);
+}
+
+.perf-counts h4,
+.perf-pro h4,
+.perf-timeline h4,
+.perf-group h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+}
+
+.perf-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.perf-detail-grid dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.perf-detail-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.perf-unavailable {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.perf-sparkline {
+  width: 100%;
+  height: 80px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.perf-sparkline polyline {
+  stroke: var(--color-text);
+}
+
+/*
+ * position: relative makes this the containing block of any absolutely
+ * positioned label inside, so a visually hidden header cannot escape the
+ * scroller and widen the page (Phase 9 closeout finding).
+ */
+.perf-table-scroll {
+  position: relative;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.perf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+}
+
+.perf-table caption {
+  text-align: left;
+  padding-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.perf-table th,
+.perf-table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.perf-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.perf-error,
+.journal-error {
+  margin: 0;
+  color: var(--color-blocked);
+  overflow-wrap: anywhere;
+}
+
+.journal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.journal-entry {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.journal-entry__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  overflow-wrap: anywhere;
+}
+
+.journal-tag {
+  display: inline-block;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+/* The person's own writing is visually distinct from simulated facts. */
+.journal-tag--mine {
+  border-color: var(--color-waiting);
+  color: var(--color-waiting);
+}
+
+.journal-entry__form {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  border-left: 4px solid var(--color-waiting);
+  padding-left: var(--space-3);
+  min-width: 0;
+}
+
+.journal-entry__form textarea,
+.journal-entry__form input {
+  max-width: 100%;
+  min-height: 36px;
+  font: inherit;
+}
+
+.journal-entry__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.journal-entry__actions button {
+  min-height: 40px;
+}
+
+.journal-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.journal-facts dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.journal-facts dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.journal-hint,
+.journal-version,
+.journal-count,
+.journal-basis {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}

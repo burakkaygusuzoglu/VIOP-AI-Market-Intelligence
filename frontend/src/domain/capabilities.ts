@@ -150,6 +150,17 @@ export const CAPABILITIES: readonly Capability[] = [
     detail:
       'Simülasyon motoru, olay defteri ve kalıcılık hazır; ancak bu kurulumda doğrulanmış sözleşme meta verisi sağlayıcısı yok, bu yüzden sunucu her yeni kağıt pozisyonu reddeder. Gerçek emir yürütme kalıcı olarak devre dışıdır (ana şartname 120).',
   },
+  {
+    id: 'paper-performance',
+    label: 'Kağıt işlem performansı ve günlük (simülasyon)',
+    // Phase 10. The analytics read the append-only ledger, so the endpoint works
+    // whatever is in it: with no positions it truthfully reports that nothing has
+    // completed. Writing a note works as soon as a position exists.
+    state: 'AVAILABLE_NOW',
+    endpoint: 'GET /api/paper/performance',
+    detail:
+      'Kaydedilmiş kağıt pozisyonların değiştirilemez olay defterinden hesaplanır. Hesaplanamayan ölçümler sıfır olarak değil, sebebiyle birlikte gösterilir. Notlar ve etiketler kullanıcıya aittir ve hiçbir finansal değeri değiştirmez.',
+  },
 ] as const;
 
 export function capability(id: string): Capability | undefined {

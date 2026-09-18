@@ -233,6 +233,13 @@ class TestNoBrokerSurface:
             "/api/paper/positions/{position_id}/close",
             "/api/paper/positions/{position_id}/stop/breakeven",
             "/api/paper/positions/{position_id}/cancel",
+            # Phase 10 reads the same simulated history and adds one writable
+            # surface for a person's own notes. Nothing here places an order.
+            "/api/paper/performance",
+            "/api/paper/performance/breakdowns",
+            "/api/paper/journal",
+            "/api/paper/journal/tags",
+            "/api/paper/positions/{position_id}/journal",
         }
 
 

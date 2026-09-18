@@ -15,8 +15,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.adapters.market_data.csv_provider import CsvCandleTextParser
+from app.adapters.performance.paper_source import SqlPaperPerformanceSource
 from app.adapters.persistence.database import Database
 from app.adapters.persistence.health import SqlAlchemyDatabaseHealth
+from app.adapters.persistence.journal_store import SqlAlchemyJournalStore
 from app.adapters.persistence.paper_store import SqlAlchemyPaperStore
 from app.adapters.products.futures import FuturesSnapshotCodec
 from app.adapters.system.clock import SystemClock
@@ -35,6 +37,7 @@ from app.api.routes.analysis import (
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.health import router as health_router
 from app.api.routes.paper import router as paper_router
+from app.api.routes.performance import router as performance_router
 from app.api.routes.screenshots import get_analyzer
 from app.api.routes.screenshots import router as screenshots_router
 from app.application.use_cases.get_liveness import GetLiveness
@@ -109,6 +112,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.product_resolver = None
         clock = SystemClock()
         application.state.clock = clock
+        # Phase 10 journal and performance. Analytics read the append-only
+        # ledger, never the mutable projection. The snapshot codec is handed to
+        # the source so a still-open position's current mark can be replayed
+        # from its own ledger and checked against the stored row.
+        application.state.journal_store = SqlAlchemyJournalStore(database)
+        application.state.performance_source = SqlPaperPerformanceSource(
+            database, application.state.product_codec
+        )
         application.state.get_liveness = GetLiveness(
             clock=clock,
             app_env=settings.app_env,
@@ -173,6 +184,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(screenshots_router, prefix=settings.api_prefix)
     application.include_router(analysis_router, prefix=settings.api_prefix)
     application.include_router(paper_router, prefix=settings.api_prefix)
+    application.include_router(performance_router, prefix=settings.api_prefix)
 
     # The composition root fills the provider seams. Overriding a dependency is
     # how the *application* injects its adapters here, not a test-only hook -

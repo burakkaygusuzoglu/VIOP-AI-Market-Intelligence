@@ -14,8 +14,10 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from app.adapters.persistence import paper_models  # noqa: F401  (registers Phase 9 tables)
 from app.adapters.persistence.base import Base
 from app.core.config import get_settings
+from app.core.runtime import configure_event_loop_policy
 
 config = context.config
 
@@ -63,6 +65,9 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
+    # Platform trap 1 (CLAUDE.md): psycopg's async mode cannot run on Windows'
+    # default ProactorEventLoop. A no-op on Linux, where the container runs this.
+    configure_event_loop_policy()
     asyncio.run(run_async_migrations())
 
 

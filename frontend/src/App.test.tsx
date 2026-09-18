@@ -84,9 +84,10 @@ describe('the dashboard is the entry point', () => {
   it('lists future modules as unavailable rather than faking them', () => {
     renderApp();
 
-    expect(screen.getByText('Kağıt pozisyonlar')).toBeInTheDocument();
-    expect(screen.getByText('İşlem günlüğü')).toBeInTheDocument();
-    expect(screen.getAllByText('Faz 9').length).toBeGreaterThan(0);
+    // Phase 9 shipped paper positions; the journal and performance are Phase 10.
+    expect(screen.getByText('İşlem günlüğü ve performans')).toBeInTheDocument();
+    expect(screen.getAllByText('Faz 10').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Kağıt pozisyonlar')).not.toBeInTheDocument();
   });
 
   it('keeps the execution-mode disclosure visible', () => {

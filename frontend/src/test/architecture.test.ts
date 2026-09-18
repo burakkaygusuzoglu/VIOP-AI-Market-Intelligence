@@ -168,10 +168,34 @@ describe('no fake production runtime (§3)', () => {
 });
 
 describe('no later-phase leakage (§38)', () => {
-  it('contains no execution, broker or paper-trading concept', () => {
+  /*
+   * Phase 8 also banned any paper-trading concept here. Phase 9 is that concept,
+   * approved, so the word is no longer banned - but everything that would turn a
+   * simulation into an order still is, and the list grew rather than shrank.
+   */
+  it('contains no execution or broker concept', () => {
     for (const file of ALL) {
       const text = read(file);
-      for (const banned of ['placeOrder', 'submitOrder', 'brokerClient', 'paperTrade', 'Midas']) {
+      for (const banned of [
+        'placeOrder',
+        'submitOrder',
+        'sendOrder',
+        'executeOrder',
+        'brokerClient',
+        'brokerSession',
+        'Midas',
+        'WebSocket(',
+        'EventSource(',
+      ]) {
+        expect(text, shortName(file)).not.toContain(banned);
+      }
+    }
+  });
+
+  it('never tells a person an order was sent', () => {
+    for (const file of PRODUCTION) {
+      const text = read(file).toLocaleLowerCase('tr-TR');
+      for (const banned of ['emir gönderildi', 'emriniz iletildi', 'order placed', 'order sent']) {
         expect(text, shortName(file)).not.toContain(banned);
       }
     }

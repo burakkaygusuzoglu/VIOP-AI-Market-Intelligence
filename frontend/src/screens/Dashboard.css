@@ -32,6 +32,17 @@
   padding: 0 var(--space-5);
 }
 
+/* Phase 9: the paper-trading entry. Marked as a simulation by its own label and
+   by an amber border, never styled like the analysis call to action. */
+.dashboard-screen__secondary {
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.05em;
+  border-color: var(--color-waiting);
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  margin-left: var(--space-3);
+}
+
 .dashboard-screen__capabilities,
 .dashboard-screen__future {
   border: 1px solid var(--color-border);

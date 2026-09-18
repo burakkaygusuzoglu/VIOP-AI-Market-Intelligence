@@ -306,6 +306,67 @@ source_modules = [
 forbidden_modules = ["app.domain.futures.policy", "app.domain.futures.risk"]
 
 [[tool.importlinter.contracts]]
+# Phase 9. Paper trading is generic: a position has a symbol, a direction, whole
+# units and price levels, and everything product-specific - what a point is
+# worth, whether a level is on the price grid, whether the product can be
+# calculated at all - arrives through a `ProductPolicy`. If this package could
+# import the futures domain, the first "just read the multiplier here" would make
+# every later asset class a futures-shaped special case. It also may not reach
+# the analysis stack: a simulated fill depends on a bar and a plan, never on an
+# opinion about the market.
+name = "The paper-trading domain depends on no product implementation or analysis engine"
+type = "forbidden"
+source_modules = ["app.domain.paper"]
+forbidden_modules = [
+    "app.domain.futures",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+
+[[tool.importlinter.contracts]]
+# Phase 9. Paper trading consumes the risk engine and the product boundary; nothing
+# consumes paper state back. A risk figure that could read a simulated position -
+# or an analysis that knew a paper trade was open - would let a simulation feed
+# into the calculations it is supposed to be simulating.
+name = "Nothing beneath paper trading depends on it"
+type = "forbidden"
+source_modules = [
+    "app.domain.common",
+    "app.domain.instrument",
+    "app.domain.market",
+    "app.domain.risk",
+    "app.domain.futures",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+forbidden_modules = ["app.domain.paper"]
+
+[[tool.importlinter.contracts]]
+# Phase 9. The paper use cases resolve a product through `ProductResolver` and
+# restore one through `ProductSnapshotCodec`; the futures implementations of both
+# live in adapters. Importing the futures domain here would make the composition
+# of products an application decision, and importing the analysis orchestrator
+# would couple opening a paper trade to having run an analysis - which Phase 9
+# deliberately does not do.
+name = "The paper application layer reaches products only through its ports"
+type = "forbidden"
+source_modules = ["app.application.paper"]
+forbidden_modules = [
+    "app.domain.futures",
+    "app.application.analysis",
+    "app.adapters",
+    "app.api",
+]
+
+[[tool.importlinter.contracts]]
 # Phase 3. Futures contract facts are inputs to analysis, never outputs of it.
 name = "The futures domain does not depend on analysis engines"
 type = "forbidden"

@@ -8,6 +8,7 @@ import type { AnalysisReadModel } from './domain/models';
 import { AnalysisWorkspace, type ExperienceMode } from './screens/AnalysisWorkspace';
 import { AnalyzeMarket } from './screens/AnalyzeMarket';
 import { Dashboard } from './screens/Dashboard';
+import { PaperTrading } from './screens/PaperTrading';
 import { useTranslations } from './i18n';
 
 /**
@@ -42,7 +43,7 @@ import { useTranslations } from './i18n';
  * it arrive anyway, ignored.
  */
 
-type Screen = 'dashboard' | 'analyze' | 'workspace';
+type Screen = 'dashboard' | 'analyze' | 'workspace' | 'paper';
 
 export function App() {
   const t = useTranslations();
@@ -118,7 +119,11 @@ export function App() {
         </div>
       </header>
 
-      {screen === 'dashboard' && <Dashboard onAnalyse={() => setScreen('analyze')} />}
+      {screen === 'dashboard' && (
+        <Dashboard onAnalyse={() => setScreen('analyze')} onPaper={() => setScreen('paper')} />
+      )}
+
+      {screen === 'paper' && <PaperTrading mode={mode} />}
 
       {screen === 'analyze' && (
         <AnalyzeMarket

@@ -6,9 +6,11 @@ import './Dashboard.css';
  * The entry point (§26).
  *
  * Built only from what exists **now**. The master spec's dashboard also lists
- * watchlists, live setup cards, paper positions and a journal; those belong to
- * phases that own their data sources, and a card showing zero paper positions
- * would be indistinguishable from a working feature with nothing in it.
+ * watchlists, live setup cards, paper positions and a journal. Paper positions
+ * have their own screen since Phase 9, reached from a secondary control rather
+ * than a dashboard card; the rest belong to phases that own their data sources,
+ * and a card showing zero items would be indistinguishable from a working
+ * feature with nothing in it.
  *
  * So the unavailable ones are listed as unavailable, by name, with the reason —
  * which is more useful than omitting them (a reader wonders whether they were
@@ -32,15 +34,19 @@ const FUTURE_MODULES = [
     phase: 'Faz 13',
     reason: 'Canlı veri mimarisi bu fazda değil.',
   },
-  { name: 'Kağıt pozisyonlar', phase: 'Faz 9', reason: 'İşlem yaşam döngüsü henüz yok.' },
-  { name: 'İşlem günlüğü', phase: 'Faz 9', reason: 'Kalıcılık henüz yok.' },
+  {
+    name: 'İşlem günlüğü ve performans',
+    phase: 'Faz 10',
+    reason: 'Kağıt işlemler kaydedilir, ancak günlük ve performans analizi sonraki fazdır.',
+  },
 ] as const;
 
 export interface DashboardProps {
   readonly onAnalyse: () => void;
+  readonly onPaper: () => void;
 }
 
-export function Dashboard({ onAnalyse }: DashboardProps) {
+export function Dashboard({ onAnalyse, onPaper }: DashboardProps) {
   return (
     <div className="dashboard-screen">
       <section className="dashboard-screen__hero" aria-labelledby="dashboard-heading">
@@ -54,6 +60,12 @@ export function Dashboard({ onAnalyse }: DashboardProps) {
         <button type="button" className="dashboard-screen__cta" onClick={onAnalyse}>
           PİYASA ANALİZİ
         </button>
+        <button type="button" className="dashboard-screen__secondary" onClick={onPaper}>
+          KAĞIT İŞLEM (SİMÜLASYON)
+        </button>
+        <p className="dashboard-screen__intro">
+          Kağıt işlemler yalnızca simülasyondur: gerçek emir oluşturulmaz veya gönderilmez.
+        </p>
       </section>
 
       <SystemStatus />

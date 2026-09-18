@@ -139,10 +139,16 @@ export const CAPABILITIES: readonly Capability[] = [
   },
   {
     id: 'paper-trading',
-    label: 'Kağıt üzerinde işlem',
-    state: 'NOT_IMPLEMENTED',
-    endpoint: null,
-    detail: 'Sonraki faz. Gerçek emir yürütme kalıcı olarak devre dışı (ana şartname 120).',
+    label: 'Kağıt üzerinde işlem (simülasyon)',
+    // Phase 9. The engine, the ledger, persistence and every route exist and are
+    // reachable, but no verified contract metadata provider is composed, so the
+    // server refuses every new position with PRODUCT_METADATA_UNAVAILABLE. That is
+    // exactly ENDPOINT_NOT_WIRED: a documented route whose calls return a typed
+    // failure. Not AVAILABLE_NOW, and never offered as if it were.
+    state: 'ENDPOINT_NOT_WIRED',
+    endpoint: 'POST /api/paper/positions',
+    detail:
+      'Simülasyon motoru, olay defteri ve kalıcılık hazır; ancak bu kurulumda doğrulanmış sözleşme meta verisi sağlayıcısı yok, bu yüzden sunucu her yeni kağıt pozisyonu reddeder. Gerçek emir yürütme kalıcı olarak devre dışıdır (ana şartname 120).',
   },
 ] as const;
 

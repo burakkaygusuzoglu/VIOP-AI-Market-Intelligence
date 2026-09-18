@@ -103,14 +103,19 @@ describe('analysis availability', () => {
 });
 
 describe('nothing later-phase is advertised as working', () => {
-  it('keeps execution and persistence unimplemented', () => {
-    for (const id of [
-      'paper-trading',
-      'persisted-analysis',
-      'historical-analysis',
-      'live-analysis',
-    ]) {
+  it('keeps live analysis and analysis persistence unimplemented', () => {
+    for (const id of ['persisted-analysis', 'historical-analysis', 'live-analysis']) {
       expect(capability(id)?.state, id).toBe('NOT_IMPLEMENTED');
     }
+  });
+
+  it('describes paper trading as routed but unable to open positions here', () => {
+    // Phase 9: the routes exist, but no verified contract metadata provider is
+    // composed, so every new position is refused. Never AVAILABLE_NOW.
+    const paper = capability('paper-trading');
+    expect(paper?.state).toBe('ENDPOINT_NOT_WIRED');
+    expect(paper?.endpoint).toBe('POST /api/paper/positions');
+    expect(paper?.detail).toMatch(/reddeder/);
+    expect(paper?.detail).toMatch(/emir yürütme kalıcı olarak devre dışı/);
   });
 });

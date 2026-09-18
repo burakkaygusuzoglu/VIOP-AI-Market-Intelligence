@@ -122,8 +122,19 @@ Declared as import-linter contracts in `backend/pyproject.toml` and executed by
     technical, structure, analysis, suitability, synthesis, vision and the
     presentation layer may not import `app.domain.futures.policy` or
     `app.domain.futures.risk`. *(Phase 8.5)*
+20. **The paper-trading domain depends on no product implementation or analysis
+    engine** — `app.domain.paper` may not import `app.domain.futures`, technical,
+    structure, analysis, suitability, synthesis or vision. Product facts arrive
+    as a `ProductPolicy`; P&L comes from `pnl_for_product`. *(Phase 9)*
+21. **Nothing beneath paper trading depends on it** — common, instrument,
+    market, risk, futures and every analysis engine may not import
+    `app.domain.paper`, so a simulation can never feed the calculations it
+    simulates. *(Phase 9)*
+22. **The paper application layer reaches products only through its ports** —
+    `app.application.paper` may not import `app.domain.futures`,
+    `app.application.analysis`, adapters or the API. *(Phase 9)*
 
-Nineteen contracts; this list and `backend/pyproject.toml` now have the same
+Twenty-two contracts; this list and `backend/pyproject.toml` have the same
 count. These are verified to actually fail when violated; the check is not
 decorative.
 
@@ -166,7 +177,8 @@ backend/app/
 │   ├── synthesis/     final action, action envelope,
 │   │                  references, authority classes         [Phase 7A]
 │   ├── strategies/    strategy configs, router              (phase 5+)
-│   ├── trading/       paper positions, lifecycle            (phase 9)
+│   ├── paper/         paper positions, simulation rules,
+│   │                  lifecycle engine, event replay        [Phase 9]
 │   └── backtest/      historical evaluation                 (phase 12)
 ├── application/
 │   ├── ports/         market_data, ai, system, screenshot   [Phase 0/1/6]
@@ -1119,7 +1131,7 @@ Phase 8 client ignores them; the frontend schema defaults them to `null`, and th
 risk card shows "Varlık sınıfı: Vadeli işlem sözleşmesi" with its provenance.
 No control for an unimplemented market exists anywhere in the UI.
 
-**Deliberately not built.** No `PaperPosition`, no equity, crypto or FX policy,
+**Deliberately not built (at Phase 8.5).** No `PaperPosition`, no equity, crypto or FX policy,
 no venue, no fee model, no funding, no liquidation. The seam Phase 9 needs is an
 instrument identity plus a product policy, and both exist.
 
@@ -1139,6 +1151,266 @@ category - none of which this document supplies.
 | Lifecycle | corporate actions, suspensions | delistings | funding intervals, auto-deleveraging | swap/rollover |
 | Market data | quotes, depth, corporate-action-adjusted history | venue trades/quotes | mark, index, funding rate | quotes from a named liquidity source |
 | Risk policy | gap risk, short-sale constraints | venue/custody risk | liquidation price, funding exposure | weekend gaps, rollover cost |
+
+## Paper trading (Phase 9)
+
+Phase 9 adds a **simulation** of a person's own trade plan against bars they
+supply. Nothing in it can reach a broker: there is no order, no broker client,
+no Midas integration, no credential and no market-data feed. Every response
+says `simulated: true` and every fill carries provenance `SIMULATED`.
+
+    api/routes/paper.py        /api/paper/positions …   (8 operations, extra="forbid")
+            │
+    application/paper          PaperTradingService: idempotency, clock, CSV parse,
+            │                  risk sizing, transactions, replay-before-write
+            │   ports:         ProductResolver · ProductSnapshotCodec · PaperStore
+            ▼
+    domain/paper               rules · model · engine   (pure, deterministic)
+            │
+            ├── domain/instrument  ProductPolicy, require_product_calculable
+            └── domain/risk        size_for_product, pnl_for_product
+
+    adapters/products/futures.py       FuturesProductResolver, FuturesSnapshotCodec
+    adapters/persistence/paper_*.py    SqlAlchemyPaperStore, append-only ledger
+
+The domain is generic. `app.domain.paper` never imports `app.domain.futures`
+(contract 20); it asks a `ProductPolicy` whether the product is calculable and
+computes gross P&L only through `pnl_for_product`, which requires a VERIFIED
+point value. Futures is the only product implementation, and it enters through
+an adapter. An unregistered asset class is refused with
+`UNSUPPORTED_ASSET_CLASS`; nothing falls back to futures.
+
+### Lifecycle
+
+    PENDING_ENTRY ──next bar──▶ OPEN ──target──▶ PARTIALLY_CLOSED ──▶ CLOSED
+          │  │                   │ │                    │
+          │  └─entry at/beyond   │ └─stop / manual──────┴──────────▶ CLOSED
+          │    stop or target 1  │
+          │    ──▶ REJECTED      └─stop+target in one bar, policy HALT
+          │                          ──▶ AMBIGUOUS_HALTED ──manual close──▶ CLOSED
+          └─cancel──▶ CANCELLED
+
+`CLOSED`, `CANCELLED` and `REJECTED` are terminal. A terminal position accepts
+no further input, and its unrealized P&L is exactly zero.
+
+### Simulation rules (`paper-sim/v1`)
+
+| Event | Fill |
+| --- | --- |
+| Entry | Open of the first closed bar opening at or after the decision time (`NEXT_BAR_OPEN`), plus adverse slippage. Rejected if that fill is at or beyond the stop or the first target. |
+| Stop | The stop price; if the bar **opens** through the stop, the open (`STOP_PRICE_OR_GAPPED_OPEN`). Trigger price and fill price are recorded separately, and `gap` is recorded. Adverse slippage applies. |
+| Target | The target price, never better, even on a gap (`TARGET_PRICE_NO_IMPROVEMENT`). No slippage: a resting limit is not a market fill. |
+| Manual close | Open of the next closed bar (`NEXT_BAR_OPEN`), plus adverse slippage. |
+| Breakeven | Stop moves to the entry fill only while the mark is already favourable; otherwise `BREAKEVEN_NOT_PROTECTIVE`. |
+
+**Same-bar ambiguity.** OHLC has no order inside a bar. When one bar touches
+both the stop and an unfilled target the engine records `SAME_BAR_AMBIGUITY`
+naming every touched target, then applies the policy stored with the position:
+`STOP_FIRST` (default, pessimistic, the whole remainder exits at the stop) or
+`HALT` (no fill; the position freezes in `AMBIGUOUS_HALTED` until the person
+closes it manually). No policy chooses the target.
+
+**Slippage** is `ZERO` by default or `FIXED_POINTS`, always adverse, and only
+on market-style fills. **Fees** are `NOT_MODELLED` (no fee and **no net P&L** -
+unknown cost is not zero cost) or `USER_DEFINED_PER_UNIT`, an all-in amount the
+person states. No VİOP commission, exchange fee or tax is built in.
+
+The policy is part of the position, validated against `SUPPORTED_RULES_VERSIONS`
+and persisted with it, so replay uses the rules the position was opened under.
+
+### The ledger is the truth, and replay proves it
+
+Every change is an event. **Input** events - `POSITION_CREATED`,
+`OBSERVATION_APPLIED`, `CLOSE_REQUESTED`, `STOP_MOVED_TO_BREAKEVEN`,
+`POSITION_CANCELLED` - record what a person or the market supplied. Every other
+event is **derived** by the engine. `rebuild()` feeds only the inputs back
+through the same rules and requires the derived ledger to be reproduced exactly;
+any difference is `REPLAY_DIVERGED`. The service rebuilds before every write, so
+a stored row can never drift from what its events imply.
+
+Observations are strict. Bars must be closed by the server clock
+(`OBSERVATION_NOT_CLOSED`), at or after the decision time, and chronological - each
+new bar opens at least one timeframe after the last applied bar
+(`OUT_OF_ORDER`). Missing bars (sessions, holidays) are allowed and not
+invented. Re-sending an identical bar is a no-op; the same
+timestamp with different prices is `CONFLICTING_OBSERVATION`. An upload is
+applied atomically.
+
+### Market time decides outcomes; the wall clock never does
+
+Two clocks exist here and they are not interchangeable. **Market time** is the
+bar's `open_time` - when a price was printed. **Wall-clock time** is what the
+server thinks "now" is, and it arrives only through the injected `ClockPort`.
+
+| The wall clock may | The wall clock may never |
+| --- | --- |
+| stamp `created_at`, `updated_at`, `recorded_at` | choose a fill price |
+| refuse a submitted bar that has not closed yet | decide a lifecycle state on replay |
+| refuse a decision time claiming to be in the future | change realized or unrealized P&L |
+| | order events, resolve a same-bar case, or identify an observation |
+
+`app.domain.paper` contains no clock at all - not an import, not a call - and
+`app.application.paper` never reads the process clock directly, only its
+injected port. Both are enforced by tests that scan the packages, because a
+direct `datetime.now()` would sit outside the reach of any clock-injecting
+test. `rebuild()` is a pure function of the spec, the risk approval, the frozen
+product snapshot, the persisted policy and the stored input events; reading the
+same position under clocks decades apart returns identical ledgers, projections
+and DTOs.
+
+**Entry causality.** `NEXT_BAR_OPEN` means the open of a bar whose `open_time`
+is at or after the decision time. A bar that opened *before* the decision is
+refused outright (`OBSERVATION_BEFORE_DECISION`), so its open can never become
+the entry price, however long afterwards the bar closed. A 5-minute bar opening
+at 10:05 is not eligible for a decision at 10:07: its open is a price nobody
+could have acted on. The next bar - 10:10 - is the first eligible one. LONG and
+SHORT are identical in this respect.
+
+Because entry is at the open, everything else in that bar happened afterwards,
+so the entry bar may fill its own stop or target; which came first inside the
+bar is unknown, and that is exactly the same-bar policy's question.
+
+**Closedness is an intake rule, not a replay rule.** A submitted bar is
+accepted only if `open_time + timeframe duration` is not in the future -
+coverage end is derived conservatively from the bar's own timeframe (5M, 15M,
+1H and 1D are the supported paper timeframes; no exchange session-close times
+are invented). Once accepted, that bar is a fact in the ledger and its
+closedness is never re-litigated: replaying an old position under a clock
+earlier than its last bar produces exactly the same result, so a wrong machine
+clock or a restored backup cannot make stored positions unreplayable.
+
+**Commands take effect after the bars already applied.** A close request is
+anchored to the last applied bar (`effective_after_bar` on `CLOSE_REQUESTED`)
+and fills at the open of the *next* bar observed; re-sending the bar the
+position has already seen is a no-op and cannot fill it retroactively. A
+breakeven move likewise guards only later bars: the bar whose favourable move
+justified the stop is never re-examined, so its own low or high cannot trigger
+the stop that did not exist while it traded. Both events record the anchor, so
+the ledger states the meaning instead of implying it from sequence order.
+Repeating either command while it is already in effect appends nothing.
+
+### The projection is derived; the ledger is the record
+
+`paper_positions` holds a projection - state, remaining, marks, P&L - written in
+the same transaction as the events it summarises, so that listing positions does
+not replay every ledger. It is never an independent source of truth.
+
+Reading one position replays its stored inputs and compares the result with the
+stored row. If they disagree - a row edited outside the application, or a bug -
+the read fails with `PROJECTION_DIVERGED` (503) rather than presenting the row
+as financial history, and the next legitimate write rewrites the projection from
+the ledger. The cost is replay on the detail path: about 4 ms for a typical
+position, and about 0.6 s for one at the 5 000-bar ceiling. The list endpoint
+still serves projections unverified, which is why it carries summaries only and
+every number a person acts on comes from the verified detail.
+
+### Append-only, and what that does not mean
+
+Through the application there is no path that rewrites history: no route
+deletes or edits events, sequences are assigned by the engine, and
+`(position_id, sequence)` is the primary key. In the database, a PL/pgSQL
+trigger refuses every `UPDATE` and `DELETE` on `paper_position_events`; this is
+re-proved against real PostgreSQL, including at runtime through the container.
+
+This is append-only *by application and database rule*, not cryptographic
+immutability. A superuser can drop the trigger, and `TRUNCATE` is not a
+row-level delete (the test suite uses it deliberately). Anyone with privileged
+database access can rewrite the ledger, and nothing here would detect it beyond
+the projection check above.
+
+### Test metadata cannot become production metadata
+
+The lifecycle proofs need a contract whose multiplier counts as a verified fact.
+They get one by constructing it in the test suite and declaring it
+`VERIFIED_CURRENT_FACT` at the call site. That is safe only because there is no
+route from a deployment to such a fixture:
+
+* the composition root sets `product_resolver = None` unconditionally - no
+  environment variable, setting, symbol pattern, request field, query parameter
+  or frontend flag can produce one;
+* `get_product_resolver` reads `app.state` and nothing else;
+* no shipped module imports the test package or constructs a fixture contract;
+* only `VERIFIED_CURRENT_FACT` is authoritative - `TEST_FIXTURE`, `MOCK_DATA`,
+  `DEVELOPMENT_DEFAULT` and `UNVERIFIED` all fail `require_product_calculable`,
+  so even a leaked fixture could not produce a P&L number.
+
+Tests hold this from both sides, and a mutation that wires a fixture resolver
+into the composition root behind an environment variable is detected.
+
+### Risk is independent and comes first
+
+A position is sized by `size_for_product` before it exists. If the risk engine
+does not return `ALLOWED` - vetoed, unavailable, or the requested quantity above
+the allowed units - nothing is persisted (`RISK_NOT_ALLOWED`,
+`QUANTITY_EXCEEDS_RISK`). Analysis never creates a paper position; there is no
+path from `/api/analysis` to `/api/paper`, and the application layer may not
+import the analysis orchestrator (contract 22).
+
+### Persistence
+
+PostgreSQL, migration `0002_paper_trading`:
+
+* `paper_positions` - one row per position: the plan, the risk approval, the
+  frozen product snapshot, the projection, a `version`, and a unique
+  `idempotency_key` with its request fingerprint.
+* `paper_position_events` - primary key `(position_id, sequence)`. A trigger
+  refuses every `UPDATE` and `DELETE`: the ledger is append-only in the database,
+  not only in code.
+* Money columns are unconstrained `NUMERIC`; times are `timestamptz`.
+
+**Concurrency.** A write takes `SELECT … FOR UPDATE` on the position, rebuilds,
+appends, and updates the row conditional on its `version`; the
+`(position_id, sequence)` key is a final backstop.
+
+**Idempotency.** `POST /paper/positions` requires an `Idempotency-Key`. The
+position id is derived from it (`PP-` + 24 hex of its SHA-256). The same key with
+the same payload returns the stored position (200 instead of 201,
+`idempotent_replay: true`);
+the same key with a different payload is 409. A concurrent duplicate insert
+re-reads the winner.
+
+**Product snapshot.** The contract facts used at open - including every
+`VerifiedValue` and its provenance - are frozen with the position. A later
+metadata change cannot rewrite a past simulation.
+
+### Deployment truth
+
+The composition root wires the store and the futures snapshot codec, but **no
+contract metadata provider** exists, so `product_resolver` is `None` and every
+create is refused with `PRODUCT_METADATA_UNAVAILABLE` (422). This is deliberate:
+a paper position is never opened against assumed contract specifications. The
+full lifecycle is proven with fixture contracts declared VERIFIED at the call
+site: in-process against real PostgreSQL in the test suite, and at runtime by a
+real uvicorn process (the production app with only the resolver overridden)
+whose database rows, API responses and values rendered by the production bundle
+in a browser are required to be identical.
+
+### API boundary
+
+Request bodies are `extra="forbid"` and carry only the plan: symbol, direction,
+integer quantity, levels, targets, timeframe, decision time, account, risk mode
+and simulation choices. There is no field in which a client could supply a
+state, a fill, a P&L, a fee total or provenance. Decimal text is bounded
+(≤ 40 characters, finite, magnitude < 10¹²). Limits: 50 positions and 200
+events per page, 500 rows and 256 KiB per upload, 5 000 bars per position.
+Store unreachability is 503 `PAPER_STORE_UNAVAILABLE`.
+
+### Frontend
+
+A separate screen, entered from a secondary dashboard control. A persistent
+banner and a state tag say SİMÜLASYON on every view. Numbers are rendered as the
+server's decimal strings; the frontend computes no fill, P&L or state. Beginner
+view explains each event in Turkish from the ledger fields; the Pro section
+shows rules version, policy, risk approval, provenance and the raw bar events.
+The architecture test bans order/broker vocabulary (`placeOrder`,
+`brokerClient`, `Midas`, `WebSocket`, …) from the frontend source.
+
+### Deliberately not built
+
+Live or delayed data feeds, limit/stop-limit entry models, partial fills on
+volume, commission schedules, margin calls on paper positions, linkage from an
+analysis snapshot to a position, portfolio aggregation, a trade journal and
+performance statistics (Phase 10+).
 
 ## Cross-cutting decisions
 

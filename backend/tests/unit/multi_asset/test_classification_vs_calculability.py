@@ -424,8 +424,26 @@ class TestPolicyDispatchTrustBoundary:
             "orchestrator.py",
             "analysis_projection.py",
             "risk.py",
+            # Phase 9: the paper-trading product adapter. One site wraps the record
+            # the server's contract provider returned; the other restores that same
+            # record from the snapshot the server persisted when the position
+            # opened. Neither can be reached with client input.
+            "futures.py",
         }
-        assert {argument for _, argument in sites} == {"contract"}
+        assert {argument for _, argument in sites} == {"contract", "record"}
+
+    def test_the_paper_adapter_builds_policies_only_from_provider_or_stored_records(self) -> None:
+        """Phase 9. The resolver reads the provider; the codec reads a server-written snapshot."""
+        source = (APP / "adapters" / "products" / "futures.py").read_text(encoding="utf-8")
+        resolve = source[
+            source.index("async def resolve(") : source.index("class FuturesSnapshotCodec")
+        ]
+        restore = source[source.index("def restore(") :]
+
+        assert "await self._provider.get_contract(symbol)" in resolve
+        assert "return None if record is None else FuturesProductPolicy(record)" in resolve
+        assert "record = FuturesContract(" in restore
+        assert 'snapshot["contract"]' in restore
 
     def test_the_orchestrator_builds_a_policy_only_after_a_record_was_found(self) -> None:
         source = (APP / "application" / "analysis" / "orchestrator.py").read_text(encoding="utf-8")

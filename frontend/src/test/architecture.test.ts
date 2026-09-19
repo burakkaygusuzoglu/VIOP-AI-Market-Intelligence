@@ -223,3 +223,91 @@ describe('no later-phase leakage (§38)', () => {
     }
   });
 });
+
+describe('replay computes nothing and derives no cursor (Phase 11)', () => {
+  /*
+   * Phase 11 drives the existing engines. The failure mode it invites is a
+   * browser that works out the replay clock for itself - "the next candle is
+   * five minutes later" - and then disagrees with the server about what has
+   * happened. So the client may read a cursor and may not build one.
+   */
+  it('declares no replay-only market calculation', () => {
+    for (const file of PRODUCTION) {
+      const text = read(file);
+      for (const banned of [
+        'function replayPnl',
+        'function computeReplayPnl',
+        'function replayFill',
+        'function replayIndicator',
+        'function replayWinRate',
+        'function nextReplayTime',
+        'function computeAsOf',
+        'function deriveAsOf',
+        'function advanceClock',
+      ]) {
+        expect(text, shortName(file)).not.toContain(banned);
+      }
+    }
+  });
+
+  it('never adds a timeframe duration to a replay timestamp', () => {
+    // Coverage end is the server's rule. A browser that computed it would be
+    // deciding for itself which candles have finished.
+    for (const file of PRODUCTION) {
+      const text = read(file);
+      expect(text, shortName(file)).not.toMatch(/coverageEnd\s*=/);
+      expect(text, shortName(file)).not.toMatch(/replayAsOf\s*=\s*new Date\([^)]*\+/);
+      expect(text, shortName(file)).not.toMatch(/as_of[^\n]*setMinutes/);
+    }
+  });
+
+  it('declares no request type carrying server-owned replay state', () => {
+    /*
+     * Scoped to the request types rather than the whole module: a response
+     * schema legitimately names every field the server sends, including
+     * `replay_as_of`. What must not exist is somewhere to *put* one on the way
+     * out, so the check reads the declared request shapes.
+     *
+     * The matching runtime proof - that an advance body is exactly
+     * {steps, expected_version} - lives in components/replay.test.tsx.
+     */
+    const text = read(join(SRC, 'api', 'replay.ts'));
+    const requestTypes = [
+      /export interface CreateReplayPayload {[^}]*}/s,
+      /options: \{[^}]*\},\s*\): Promise<ReplayStepDto>/s,
+    ];
+    for (const pattern of requestTypes) {
+      const declared = text.match(pattern)?.[0] ?? '';
+      expect(declared, pattern.source).not.toBe('');
+      for (const banned of ['replay_as_of', 'as_of', 'cursor', 'revealed', 'candles', 'speed']) {
+        expect(declared, banned).not.toContain(banned);
+      }
+    }
+  });
+
+  it('keeps playback speed out of every request', () => {
+    for (const file of PRODUCTION) {
+      if (!shortName(file).startsWith('api/')) continue;
+      const text = read(file);
+      expect(text, shortName(file)).not.toMatch(/speed\s*[:=][^=]/);
+    }
+  });
+
+  it('contains no backtest or optimisation concept (Phase 12 boundary)', () => {
+    for (const file of ALL) {
+      const text = read(file);
+      for (const banned of [
+        'runBacktest',
+        'backtestRun',
+        'walkForward',
+        'monteCarlo',
+        'optimizeParameters',
+        'parameterSweep',
+        'shadowMode',
+        'strategyRunner',
+      ]) {
+        expect(text, shortName(file)).not.toContain(banned);
+      }
+    }
+  });
+});

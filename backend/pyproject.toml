@@ -523,6 +523,80 @@ forbidden_modules = ["anthropic", "httpx", "requests", "openai"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
+# Phase 11. The replay domain decides one thing: which candles had finished by a
+# given market moment. It must not learn what a product is, what a position is
+# worth or what an indicator says - any of those would make "what was visible at
+# the time" depend on the engines that are supposed to consume it, and replay
+# would become a second, quieter implementation of them.
+name = "The replay domain knows only market time, not products, engines or money"
+type = "forbidden"
+source_modules = ["app.domain.replay"]
+forbidden_modules = [
+    "app.domain.futures",
+    "app.domain.paper",
+    "app.domain.performance",
+    "app.domain.journal",
+    "app.domain.risk",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+
+[[tool.importlinter.contracts]]
+# Phase 11. Nothing underneath may consume replay. An indicator, a fill or a
+# metric that could ask whether it was running inside a replay would be free to
+# behave differently there - and the whole value of a replay is that it is the
+# same code seeing less data.
+name = "Nothing beneath replay depends on it"
+type = "forbidden"
+source_modules = [
+    "app.domain.common",
+    "app.domain.instrument",
+    "app.domain.market",
+    "app.domain.risk",
+    "app.domain.futures",
+    "app.domain.paper",
+    "app.domain.performance",
+    "app.domain.journal",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+forbidden_modules = ["app.domain.replay"]
+
+[[tool.importlinter.contracts]]
+# Phase 11. Replay orchestrates; it does not compute. It may drive the existing
+# use cases - analysis, paper trading, performance - but reaching a product
+# implementation or an indicator routine directly would be the first step to a
+# replay-only fill price or a replay-only RSI. Storage stays behind its port.
+name = "The replay application layer orchestrates engines and computes nothing"
+type = "forbidden"
+source_modules = ["app.application.replay"]
+forbidden_modules = [
+    "app.adapters",
+    "app.api",
+    "sqlalchemy",
+    "app.domain.futures",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.performance",
+    "app.domain.risk.margin",
+]
+# `allow_indirect_imports` is deliberate, and it is the point of the contract.
+# Replay *must* reach these engines - through `run_analysis`, through the paper
+# service, through the performance service - because using them is how it avoids
+# reimplementing them. What it must not do is import one directly, which is what
+# a replay-only indicator or fill price would look like on its first day.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "API route and schema modules never reach into adapters directly"
 type = "forbidden"
 source_modules = ["app.api.routes", "app.api.schemas"]

@@ -20,6 +20,7 @@ from app.adapters.persistence.database import Database
 from app.adapters.persistence.health import SqlAlchemyDatabaseHealth
 from app.adapters.persistence.journal_store import SqlAlchemyJournalStore
 from app.adapters.persistence.paper_store import SqlAlchemyPaperStore
+from app.adapters.persistence.replay_store import SqlAlchemyReplayStore
 from app.adapters.products.futures import FuturesSnapshotCodec
 from app.adapters.system.clock import SystemClock
 from app.api.limits import RequestSizeLimitMiddleware, bounded_validation_response
@@ -38,6 +39,7 @@ from app.api.routes.analysis import router as analysis_router
 from app.api.routes.health import router as health_router
 from app.api.routes.paper import router as paper_router
 from app.api.routes.performance import router as performance_router
+from app.api.routes.replay import router as replay_router
 from app.api.routes.screenshots import get_analyzer
 from app.api.routes.screenshots import router as screenshots_router
 from app.application.use_cases.get_liveness import GetLiveness
@@ -120,6 +122,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.performance_source = SqlPaperPerformanceSource(
             database, application.state.product_codec
         )
+        # Phase 11 replay. One more store and nothing else: replay drives the
+        # engines above rather than owning any of their numbers, and the
+        # service is assembled per request from these same objects.
+        application.state.replay_store = SqlAlchemyReplayStore(database)
         application.state.get_liveness = GetLiveness(
             clock=clock,
             app_env=settings.app_env,
@@ -185,6 +191,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(analysis_router, prefix=settings.api_prefix)
     application.include_router(paper_router, prefix=settings.api_prefix)
     application.include_router(performance_router, prefix=settings.api_prefix)
+    application.include_router(replay_router, prefix=settings.api_prefix)
 
     # The composition root fills the provider seams. Overriding a dependency is
     # how the *application* injects its adapters here, not a test-only hook -

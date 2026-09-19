@@ -132,7 +132,7 @@ async def analyse(
             detail={"code": error.code, "detail": str(error)},
         ) from error
 
-    synthesis = await _synthesise(outcome, synthesizer, synthesis_settings, clock)
+    synthesis = await synthesise(outcome, synthesizer, synthesis_settings, clock)
     return project(outcome, synthesis)
 
 
@@ -238,13 +238,17 @@ def _narrated_direction(outcome: AnalysisOutcome) -> EvidenceDirection | None:
     return EvidenceDirection.BEARISH if bear_score > bull_score else EvidenceDirection.BULLISH
 
 
-async def _synthesise(
+async def synthesise(
     outcome: AnalysisOutcome,
     provider: MarketSynthesisProvider | None,
     settings: SynthesisSettings,
     clock: ClockPort,
 ) -> SynthesisResponse:
     """Run synthesis over the real analysis, or report why it did not.
+
+    Public because a replay runs the same analysis at a historical moment and
+    must be able to narrate it the same way - given a clock that reports replay
+    time rather than the wall clock.
 
     Every early return is a *system* status. None of them is an action, and in
     particular none of them is WAIT — a provider that did not answer has said

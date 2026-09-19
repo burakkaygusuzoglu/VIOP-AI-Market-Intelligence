@@ -161,6 +161,18 @@ export const CAPABILITIES: readonly Capability[] = [
     detail:
       'Kaydedilmiş kağıt pozisyonların değiştirilemez olay defterinden hesaplanır. Hesaplanamayan ölçümler sıfır olarak değil, sebebiyle birlikte gösterilir. Notlar ve etiketler kullanıcıya aittir ve hiçbir finansal değeri değiştirmez.',
   },
+  {
+    id: 'market-replay',
+    label: 'Geçmişe sarma (deterministik simülasyon)',
+    // Phase 11. The session, the cursor and every read are reachable and work
+    // against real storage; opening a position inside a replay goes through the
+    // Phase 9 engine and is refused for the same reason it is elsewhere - no
+    // verified contract metadata is composed here.
+    state: 'AVAILABLE_NOW',
+    endpoint: 'POST /api/replay/sessions',
+    detail:
+      'Kendi yüklediğiniz değiştirilemez geçmiş veri üzerinde mum mum ilerlersiniz. Her sayı, oturumun geçmiş piyasa anına göre üretilir; kapanışı o andan sonra olan hiçbir mum okunmaz. Oturumda kağıt pozisyon açmak, bu kurulumda doğrulanmış sözleşme meta verisi olmadığı için reddedilir.',
+  },
 ] as const;
 
 export function capability(id: string): Capability | undefined {

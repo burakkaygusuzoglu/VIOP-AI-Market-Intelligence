@@ -163,8 +163,13 @@ class TestFilterValidation:
 
 class TestRouteInventory:
     def test_exactly_the_phase_10_surfaces_exist(self, client: TestClient) -> None:
+        # Scoped to the Phase 10 prefix. Phase 11 exposes a replay-scoped
+        # performance surface of its own under /api/replay, which has its own
+        # inventory test; this one still pins Phase 10's surfaces exactly.
         paths = {
-            path for path in openapi(client)["paths"] if "performance" in path or "journal" in path
+            path
+            for path in openapi(client)["paths"]
+            if path.startswith("/api/paper") and ("performance" in path or "journal" in path)
         }
 
         assert paths == {

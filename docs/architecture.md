@@ -194,6 +194,8 @@ backend/app/
 │   ├── performance/   populations, outcome basis, metrics,
 │   │                  drawdown, streaks, breakdowns         [Phase 10]
 │   ├── journal/       user notes and tags, bounds           [Phase 10]
+│   ├── replay/        candle availability, forward-only
+│   │                  cursor, bounded advance               [Phase 11]
 │   └── backtest/      historical evaluation                 (phase 12)
 ├── application/
 │   ├── ports/         market_data, ai, system, screenshot   [Phase 0/1/6]
@@ -214,6 +216,7 @@ backend/app/
 │   ├── system/        SystemClock                           [Phase 0]
 │   ├── market_data/   CSV + deterministic synthetic         [Phase 1]
 │   ├── contract_metadata/  ManualContractMetadataProvider  [Phase 3]
+│   │   persistence/   paper, journal, replay stores         [Phase 9/10/11]
 │   ├── vision/        transport + Claude screenshot analyzer [Phase 6]
 │   ├── synthesis/     transport + Claude market synthesizer  [Phase 7B]
 │   └── news/                                                (phase 15)
@@ -239,6 +242,7 @@ backend/app/
 | `ContractMetadataProvider` | Defined + manual adapter | 3 |
 | `ScreenshotAnalyzer` | Defined + `ClaudeScreenshotAnalyzer` | 6 |
 | `MarketSynthesisProvider` | Defined + `ClaudeMarketSynthesizer` | 7A / 7B |
+| `ReplayStore` | Defined + `SqlAlchemyReplayStore` | 11 |
 | `NewsProvider` | Deferred | 15 |
 | `OrderExecutionPort` | **Not scheduled** — execution disabled | — |
 
@@ -1598,6 +1602,127 @@ for one.
 Phase 10 adds exactly one table and no cache of computed metrics: a second store
 of financial numbers is a second thing to be wrong.
 
+## Deterministic interactive replay (Phase 11)
+
+Phase 11 answers "what did this look like at the time, and what would I have
+done?" without acquiring a second opinion about anything. It adds no analysis,
+no fill model, no P&L and no metric: it decides **which candles had finished at
+a given market moment**, and hands that prefix to the engines that already
+exist.
+
+    domain/replay                           the whole rule, in one expression:
+            │                               coverage_end = open_time + duration
+            │                               available    = coverage_end <= as_of
+            │                               plus a forward-only cursor
+            ▼
+    application/replay                      orchestration, and nothing else:
+            │   port: ReplayStore           ingest · step · feed · analyse ·
+            │                               open a position · measure
+            ▼
+    adapters/persistence/replay_store.py    bounded candle reads, a conditional
+                                            cursor update, dataset immutability
+
+    api/routes/replay.py   /api/replay/sessions · /{id} · /{id}/advance
+                           /{id}/analysis · /{id}/positions · /{id}/performance
+
+**The dataset is immutable and identified by its content.** `RD-<digest>` is a
+sha256 over one canonical JSON document holding the symbol and, per timeframe,
+every candle's market instant in UTC and its five amounts in one canonical
+spelling. A *document* rather than concatenated fields, because concatenation
+hides its own boundaries: a crafted symbol carrying the bytes of a timeframe
+label and a row would otherwise collide with a genuinely different dataset.
+Re-uploading the same market twice is one dataset; a different symbol, a
+different timeframe partition or one changed price is a different one. Upload
+time, file name and supply order take no part, `save_dataset` verifies a reused
+dataset still describes what its id stands for rather than assuming it, and
+`replay_candles` carries a trigger that refuses every UPDATE and DELETE.
+
+**The virtual clock is the only clock that matters.** A session's cursor holds
+`replay_as_of`, and every consumer is bounded by it. The process clock is
+injected for audit stamps - when a session was created, when a link was
+recorded - and a package scan in `tests/unit/replay/test_engine_reuse.py`
+refuses any direct clock read inside the replay packages, because a rule about
+behaviour is only as good as the seam it is observed through.
+
+**The bound is in the SQL, not in a filter.** `ReplayStore.candles(until=...)`
+compares `open_time <= until - duration`, which is the availability rule
+written as a predicate. An unrevealed candle is never loaded, so it cannot be
+hidden later, cannot reach a serialiser, and cannot appear in a payload a
+browser holds.
+
+**Stepping is forward only, and an advance is its steps.** `step` reveals one
+driver candle and moves `as_of` to that candle's coverage end; `advance(n)` is
+implemented as repeated `step` precisely so the intermediate boundaries exist -
+they are what the paper engine needs in order to see every bar in between. The
+end of a dataset is `END_OF_DATASET`, not a repeated last candle. There is no
+rewind: reversing a replay would mean reversing paper fills and journal writes
+a person may already have acted on, so another session over the same immutable
+dataset is the answer instead.
+
+**A retried command finishes; it does not restart.** A step command records the
+revealed count it is working towards, so a retry after a partial advance
+completes the remainder rather than advancing the whole request again. Without
+that, retrying `advance(6)` after two committed boundaries left the session
+eight candles on from a request for six.
+
+**A step is recoverable, not atomic - and says so.** It writes the Phase 9
+ledger one position at a time and then writes the cursor; those are different
+stores behind different ports, and one transaction across them would be exactly
+the coupling the ports prevent. So: deliver then commit, one boundary per
+commit, and the command key written only by the last boundary. A failure leaves
+the session at the last *completed* step, positions at most one bar ahead of
+it, and the retry converges because an identical bar is a no-op in the Phase 9
+engine. The one refusal a replay may skip is a terminal position; every other
+refusal fails the step rather than letting the cursor claim a bar nobody
+received.
+
+**A replay position's identity comes from the session.** Symbol, timeframe and
+decision time are the dataset's symbol, the driver timeframe and the cursor -
+none of them has a field in a request body. Because the position carries the
+driver timeframe and a step delivers driver bars, routing matches by
+construction, with Phase 9's own timeframe and symbol guards behind it. Higher
+timeframes are never resampled: a 1H candle appears when the uploaded 1H candle
+closes, or not at all.
+
+**The replay start snaps backwards only.** A typed moment resolves to the
+driver boundary at or before it, so the effective `replay_as_of` never exceeds
+what was asked for, and the session reports both the request and the effect
+rather than normalising silently.
+
+**The server owns progression.** The API vocabulary is *how far*, never *where
+to*. No request model has a field for a replay time, a cursor, a revealed count
+or a candle, which `tests/unit/replay/test_api_boundary.py` pins field by field
+rather than by trying forged payloads - a forged-payload check can pass because
+a type happened not to match, which is how one mutation walked past an earlier
+version of it.
+
+**Concurrency is a version, idempotency is a key.** The cursor update is
+conditional on the version it read, so two tabs stepping at once mean one
+applies and the other is told. A retried step carrying the same
+`Idempotency-Key` returns the cursor that command already produced rather than
+revealing a second candle.
+
+**Replay drives the existing engines, and the tests prove it rather than
+asserting it.** `tests/integration/test_replay_parity.py` builds the same input
+twice - once through replay, once through the ordinary Phase 8/9/10 path,
+reconstructed from the uploaded CSV without touching replay's own helpers - and
+requires the answers to be identical: the analysis, the paper ledger, and every
+Phase 10 metric.
+
+**Membership is a stored link.** `replay_position_links` is keyed by the
+*position*, so a simulated position belongs to at most one session and a
+session's performance is an exact set rather than a guess from symbols or
+timestamps. Phase 10's `OutcomeFilters` grew one field, `position_ids`, which
+is how a session narrows the existing engine instead of getting its own.
+
+**Playback is a browser scheduler.** Play issues the same single step on a
+timer; speed changes the delay between commands and is not sent anywhere. Pause
+stops issuing commands, because there was never anything running on the server
+to pause.
+
+Phase 11 adds four tables and no financial record among them: the money a
+replay makes stays in the Phase 9 ledger, where one engine owns it.
+
 ## Cross-cutting decisions
 
 **Decimal at the data boundary, float inside the indicators.** Candle OHLCV
@@ -1611,7 +1736,9 @@ when the tick size is a verified fact rather than a guess. Full policy in
 
 **Time is injected.** Nothing reads the wall clock directly; it comes from
 `ClockPort`. Replay and backtest can then supply historical time, and no engine
-can observe a timestamp from the future.
+can observe a timestamp from the future. Phase 11 is that seam being used:
+`ReplayClock` reports a session's market moment, and the analysis pipeline and
+the paper engine run against it unchanged.
 
 **Forming vs closed.** `Candle.is_closed` exists from the first day so a
 forming bar can never be silently treated as a confirmed signal. From Phase 1

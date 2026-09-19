@@ -15,7 +15,10 @@ from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import text
 
-from app.adapters.persistence import journal_models  # noqa: F401  (registers the table)
+from app.adapters.persistence import (
+    journal_models,  # noqa: F401  (registers the table)
+    replay_models,  # noqa: F401  (registers Phase 11 tables)
+)
 from app.adapters.persistence.base import Base
 from app.adapters.persistence.database import Database
 from app.application.performance.ports import OutcomeFilters

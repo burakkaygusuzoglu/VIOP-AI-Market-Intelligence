@@ -115,6 +115,10 @@ WHERE (CAST(:direction AS text) IS NULL OR c.data->>'direction' = CAST(:directio
   AND (CAST(:symbol AS text) IS NULL OR c.data->>'symbol' = CAST(:symbol AS text))
   AND (CAST(:timeframe AS text) IS NULL OR c.data->>'timeframe' = CAST(:timeframe AS text))
   AND (CAST(:tag AS text) IS NULL OR j.tags @> to_jsonb(ARRAY[CAST(:tag AS text)]))
+  -- An explicit set of positions (Phase 11 replay sessions). NULL means "no
+  -- such restriction"; an empty set matches nothing, which is the right answer
+  -- for a session that has opened no position yet.
+  AND (CAST(:position_ids AS text[]) IS NULL OR c.position_id = ANY(CAST(:position_ids AS text[])))
   -- A date range selects completed trades by their closing market time. A
   -- position that has not finished has no closing time, so it cannot be chosen
   -- that way - and dropping it would make current exposure vanish from a
@@ -211,6 +215,7 @@ class SqlPaperPerformanceSource:
             "symbol": filters.symbol,
             "timeframe": filters.timeframe.value if filters.timeframe else None,
             "tag": filters.tag,
+            "position_ids": None if filters.position_ids is None else list(filters.position_ids),
             "closed_from": filters.closed_from,
             "closed_to": filters.closed_to,
             "completed_only": bool(filters.outcomes_only),

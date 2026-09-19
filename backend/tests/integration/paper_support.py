@@ -79,12 +79,17 @@ def migrate_to_head() -> None:
 async def truncate(database: Database) -> None:
     """TRUNCATE is not a row-level DELETE, so the append-only trigger allows it.
 
-    The Phase 10 journal table references positions, so it is emptied in the
-    same statement - PostgreSQL refuses to truncate a referenced table alone.
+    The Phase 10 journal table and the Phase 11 replay links reference positions,
+    so they are emptied in the same statement - PostgreSQL refuses to truncate a
+    referenced table alone.
     """
     async with database.engine.begin() as connection:
         await connection.execute(
-            text("TRUNCATE paper_journal_annotations, paper_position_events, paper_positions")
+            text(
+                "TRUNCATE replay_position_links, replay_sessions, replay_candles, "
+                "replay_datasets, paper_journal_annotations, paper_position_events, "
+                "paper_positions"
+            )
         )
 
 

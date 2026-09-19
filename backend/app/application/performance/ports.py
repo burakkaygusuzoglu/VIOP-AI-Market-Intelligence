@@ -58,6 +58,13 @@ class OutcomeFilters:
     outcomes_only: bool = False
     """True to restrict to completed positions - used by the journal list."""
 
+    position_ids: tuple[str, ...] | None = None
+    """An explicit set of positions, or None for "whatever else matches".
+
+    Phase 11 uses this so a replay session's performance covers exactly the
+    positions that session opened - an enumerated list held by the server, never
+    a guess from symbols or timestamps, and never another session's trades."""
+
     def describes_everything(self) -> bool:
         return not any(
             (
@@ -67,6 +74,7 @@ class OutcomeFilters:
                 self.symbol,
                 self.timeframe,
                 self.tag,
+                self.position_ids is not None,
             )
         )
 

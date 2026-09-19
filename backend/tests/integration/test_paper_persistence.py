@@ -17,7 +17,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
-from app.adapters.persistence import paper_models
+from app.adapters.persistence import paper_models, replay_models  # noqa: F401
 from app.adapters.persistence.base import Base
 from app.adapters.persistence.database import Database
 from app.adapters.persistence.paper_models import PaperEventRow, PaperPositionRow
@@ -72,13 +72,19 @@ class TestSchema:
                     )
                 ).scalars()
             )
-        # Phase 10 added exactly one table, for user-authored journal text.
-        # No table caches a metric: performance is computed from the ledger.
+        # Phase 10 added one table for user-authored journal text and Phase 11
+        # four for replay: an immutable dataset, its candles, the session cursor
+        # and the link from a session to the positions it opened. No table
+        # caches a metric or a second financial ledger.
         assert names == {
             "alembic_version",
             "paper_positions",
             "paper_position_events",
             "paper_journal_annotations",
+            "replay_datasets",
+            "replay_candles",
+            "replay_sessions",
+            "replay_position_links",
         }
 
     async def test_money_columns_are_exact_numeric(self, database: Database) -> None:

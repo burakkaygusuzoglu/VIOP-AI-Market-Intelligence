@@ -126,13 +126,24 @@ INPUT_EVENT_TYPES: frozenset[PaperEventType] = frozenset(
 class PositionOrigin(StrEnum):
     """Who decided this position should exist.
 
-    Phase 9 has exactly one origin. An analysis is ephemeral and is not stored,
+    Phase 9 had exactly one origin. An analysis is ephemeral and is not stored,
     so the server has no record it could check a client's claim against; a
     position is therefore never recorded as "opened by the analysis". A person
     authored it, and the risk engine was re-run server-side before it existed.
     """
 
     USER_CREATED = "USER_CREATED"
+
+    STRATEGY_BACKTEST = "STRATEGY_BACKTEST"
+    """Decided by a deterministic strategy inside a bounded backtest run.
+
+    Phase 12 adds this because the reasoning above genuinely changes for a
+    backtest: the server *does* hold the record it would have to check - the
+    run's frozen configuration, its strategy version and its decision trace -
+    and it re-ran the risk engine itself before the position existed. The
+    origin is what keeps such a position out of the journal of trades a person
+    actually thought about.
+    """
 
 
 @dataclass(frozen=True, slots=True)

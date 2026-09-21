@@ -87,6 +87,16 @@ class FuturesProductPolicy:
         """The contract multiplier, with its provenance intact."""
         return self.contract.multiplier
 
+    def price_increment(self) -> VerifiedValue[Decimal] | None:
+        """The contract's tick size, with its provenance intact.
+
+        A futures contract always carries one, so this is never ``None`` here.
+        It is returned unjudged: whether an unverified tick may be used is the
+        caller's decision, and ``price_increment_check`` still refuses to call
+        anything ON_GRID on a tick it cannot confirm.
+        """
+        return self.contract.tick_size
+
     def price_increment_check(
         self, entry_price: Decimal, stop_price: Decimal
     ) -> PriceIncrementCheck:

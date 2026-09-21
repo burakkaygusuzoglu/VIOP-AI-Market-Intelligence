@@ -131,6 +131,27 @@ class SqlAlchemyReplayStore:
             row = await session.get(ReplayDatasetRow, dataset_id)
             return None if row is None else _to_dataset(row)
 
+    async def list_datasets(
+        self, *, offset: int, limit: int
+    ) -> tuple[tuple[StoredDataset, ...], int]:
+        """A page of datasets with the total, in two statements and no candles."""
+        async with _reachable(), self._database.session() as session:
+            total = await session.scalar(select(func.count()).select_from(ReplayDatasetRow))
+            rows = (
+                (
+                    await session.execute(
+                        select(ReplayDatasetRow)
+                        .order_by(ReplayDatasetRow.created_at.desc(), ReplayDatasetRow.id)
+                        .offset(offset)
+                        .limit(limit)
+                    )
+                )
+                .scalars()
+                .unique()
+                .all()
+            )
+            return tuple(_to_dataset(row) for row in rows), int(total or 0)
+
     async def candles(
         self,
         dataset_id: str,

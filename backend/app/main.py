@@ -15,7 +15,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.adapters.market_data.csv_provider import CsvCandleTextParser
+from app.adapters.performance.backtest_source import BacktestRunPerformanceSource
 from app.adapters.performance.paper_source import SqlPaperPerformanceSource
+from app.adapters.persistence.backtest_store import SqlAlchemyBacktestStore
 from app.adapters.persistence.database import Database
 from app.adapters.persistence.health import SqlAlchemyDatabaseHealth
 from app.adapters.persistence.journal_store import SqlAlchemyJournalStore
@@ -36,12 +38,14 @@ from app.api.routes.analysis import (
     get_synthesizer,
 )
 from app.api.routes.analysis import router as analysis_router
+from app.api.routes.backtest import router as backtest_router
 from app.api.routes.health import router as health_router
 from app.api.routes.paper import router as paper_router
 from app.api.routes.performance import router as performance_router
 from app.api.routes.replay import router as replay_router
 from app.api.routes.screenshots import get_analyzer
 from app.api.routes.screenshots import router as screenshots_router
+from app.application.performance.service import PerformanceService
 from app.application.use_cases.get_liveness import GetLiveness
 from app.application.use_cases.get_system_health import GetSystemHealth
 from app.application.vision.decode import configure_image_safety
@@ -118,6 +122,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # ledger, never the mutable projection. The snapshot codec is handed to
         # the source so a still-open position's current mark can be replayed
         # from its own ledger and checked against the stored row.
+        # Phase 12 backtesting. The store is composed; the product resolver is
+        # not, for the same reason as Phase 9 - so a run that would need to
+        # price a simulated trade is refused rather than assumed.
+        backtest_store = SqlAlchemyBacktestStore(database)
+        application.state.backtest_store = backtest_store
         application.state.journal_store = SqlAlchemyJournalStore(database)
         application.state.performance_source = SqlPaperPerformanceSource(
             database, application.state.product_codec
@@ -126,6 +135,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # engines above rather than owning any of their numbers, and the
         # service is assembled per request from these same objects.
         application.state.replay_store = SqlAlchemyReplayStore(database)
+        # A run's outcomes are scoped at construction rather than by a filter,
+        # so one Phase 10 service is built per run. The route may not reach an
+        # adapter, so the composition root - which may - hands it this.
+        journal_store = application.state.journal_store
+
+        def backtest_performance(run_id: str) -> PerformanceService:
+            return PerformanceService(
+                source=BacktestRunPerformanceSource(
+                    backtest_store, application.state.product_codec, run_id
+                ),
+                journal=journal_store,
+                clock=clock,
+            )
+
+        application.state.backtest_performance = backtest_performance
         application.state.get_liveness = GetLiveness(
             clock=clock,
             app_env=settings.app_env,
@@ -192,6 +216,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(paper_router, prefix=settings.api_prefix)
     application.include_router(performance_router, prefix=settings.api_prefix)
     application.include_router(replay_router, prefix=settings.api_prefix)
+    application.include_router(backtest_router, prefix=settings.api_prefix)
 
     # The composition root fills the provider seams. Overriding a dependency is
     # how the *application* injects its adapters here, not a test-only hook -

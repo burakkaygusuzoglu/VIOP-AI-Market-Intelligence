@@ -81,12 +81,17 @@ async def truncate(database: Database) -> None:
 
     The Phase 10 journal table and the Phase 11 replay links reference positions,
     so they are emptied in the same statement - PostgreSQL refuses to truncate a
-    referenced table alone.
+    referenced table alone. The Phase 12 tables join the list for the same
+    reason: a backtest run references the replay dataset it read, so leaving
+    them out would make every test that truncates a dataset fail once any run
+    exists.
     """
     async with database.engine.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE replay_position_links, replay_sessions, replay_candles, "
+                "TRUNCATE backtest_position_events, backtest_positions, "
+                "backtest_decisions, backtest_runs, "
+                "replay_position_links, replay_sessions, replay_candles, "
                 "replay_datasets, paper_journal_annotations, paper_position_events, "
                 "paper_positions"
             )

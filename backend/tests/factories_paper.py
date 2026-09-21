@@ -178,6 +178,9 @@ class FakeProduct:
     def point_value(self) -> VerifiedValue[Decimal]:
         return fact("1", V.UNVERIFIED)
 
+    def price_increment(self) -> VerifiedValue[Decimal] | None:
+        return None
+
     def price_increment_check(
         self, entry_price: Decimal, stop_price: Decimal
     ) -> PriceIncrementCheck:

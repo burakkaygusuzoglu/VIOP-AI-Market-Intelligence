@@ -10,6 +10,7 @@ import { AnalyzeMarket } from './screens/AnalyzeMarket';
 import { Dashboard } from './screens/Dashboard';
 import { PaperTrading } from './screens/PaperTrading';
 import { PerformanceScreen } from './screens/Performance';
+import { BacktestScreen } from './screens/Backtest';
 import { ReplayScreen } from './screens/Replay';
 import { useTranslations } from './i18n';
 
@@ -45,7 +46,8 @@ import { useTranslations } from './i18n';
  * it arrive anyway, ignored.
  */
 
-type Screen = 'dashboard' | 'analyze' | 'workspace' | 'paper' | 'performance' | 'replay';
+type Screen =
+  'dashboard' | 'analyze' | 'workspace' | 'paper' | 'performance' | 'replay' | 'backtest';
 
 export function App() {
   const t = useTranslations();
@@ -127,12 +129,15 @@ export function App() {
           onPaper={() => setScreen('paper')}
           onPerformance={() => setScreen('performance')}
           onReplay={() => setScreen('replay')}
+          onBacktest={() => setScreen('backtest')}
         />
       )}
 
       {screen === 'paper' && <PaperTrading mode={mode} />}
 
       {screen === 'replay' && <ReplayScreen mode={mode} onBack={() => setScreen('dashboard')} />}
+
+      {screen === 'backtest' && <BacktestScreen mode={mode} />}
 
       {screen === 'performance' && (
         <PerformanceScreen mode={mode} onBack={() => setScreen('dashboard')} />

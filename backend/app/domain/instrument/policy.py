@@ -190,6 +190,22 @@ class ProductPolicy(Protocol):
         """
         ...
 
+    def price_increment(self) -> VerifiedValue[Decimal] | None:
+        """The grid this product's prices move on, with provenance.
+
+        ``None`` means the product has no such concept at all. A value whose
+        status is not authoritative means one was supplied but is not a
+        verified current fact - a caller must not round to a grid it cannot
+        confirm, because a fabricated grid produces fabricated levels.
+
+        Added in Phase 12 for the backtest runner, which derives protective
+        levels arithmetically and therefore has to make them executable before
+        proposing them. Asking "does this fit?" - which is all
+        ``price_increment_check`` answers - cannot tell a caller what to
+        propose instead.
+        """
+        ...
+
     def price_increment_check(
         self, entry_price: Decimal, stop_price: Decimal
     ) -> PriceIncrementCheck:

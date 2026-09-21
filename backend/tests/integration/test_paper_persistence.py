@@ -17,7 +17,11 @@ from alembic.migration import MigrationContext
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
-from app.adapters.persistence import paper_models, replay_models  # noqa: F401
+from app.adapters.persistence import (  # noqa: F401  (registering these defines the schema)
+    backtest_models,
+    paper_models,
+    replay_models,
+)
 from app.adapters.persistence.base import Base
 from app.adapters.persistence.database import Database
 from app.adapters.persistence.paper_models import PaperEventRow, PaperPositionRow
@@ -72,10 +76,14 @@ class TestSchema:
                     )
                 ).scalars()
             )
-        # Phase 10 added one table for user-authored journal text and Phase 11
-        # four for replay: an immutable dataset, its candles, the session cursor
-        # and the link from a session to the positions it opened. No table
-        # caches a metric or a second financial ledger.
+        # Phase 10 added one table for user-authored journal text, Phase 11 four
+        # for replay (an immutable dataset, its candles, the session cursor and
+        # the link from a session to the positions it opened), and Phase 12 four
+        # for backtesting: the run, its decision trace, its simulated positions
+        # and their ledgers. No table caches a metric, and the backtest tables
+        # hold no candles of their own - a run names the dataset it read. There
+        # is no second financial ledger: the Phase 12 event table holds the same
+        # Phase 9 events, kept apart from the ones a person decided to take.
         assert names == {
             "alembic_version",
             "paper_positions",
@@ -85,6 +93,10 @@ class TestSchema:
             "replay_candles",
             "replay_sessions",
             "replay_position_links",
+            "backtest_runs",
+            "backtest_decisions",
+            "backtest_positions",
+            "backtest_position_events",
         }
 
     async def test_money_columns_are_exact_numeric(self, database: Database) -> None:

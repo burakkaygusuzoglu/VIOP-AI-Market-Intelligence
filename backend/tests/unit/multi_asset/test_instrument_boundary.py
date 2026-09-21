@@ -112,6 +112,10 @@ class Relabelled:
         self.calls.append("point_value")
         return self.inner.point_value()
 
+    def price_increment(self) -> VerifiedValue[Decimal] | None:
+        self.calls.append("price_increment")
+        return self.inner.price_increment()
+
     def price_increment_check(
         self, entry_price: Decimal, stop_price: Decimal
     ) -> PriceIncrementCheck:

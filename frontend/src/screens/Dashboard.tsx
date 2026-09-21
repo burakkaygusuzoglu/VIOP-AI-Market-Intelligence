@@ -47,9 +47,16 @@ export interface DashboardProps {
   readonly onPaper: () => void;
   readonly onPerformance: () => void;
   readonly onReplay: () => void;
+  readonly onBacktest: () => void;
 }
 
-export function Dashboard({ onAnalyse, onPaper, onPerformance, onReplay }: DashboardProps) {
+export function Dashboard({
+  onAnalyse,
+  onPaper,
+  onPerformance,
+  onReplay,
+  onBacktest,
+}: DashboardProps) {
   return (
     <div className="dashboard-screen">
       <section className="dashboard-screen__hero" aria-labelledby="dashboard-heading">
@@ -71,6 +78,9 @@ export function Dashboard({ onAnalyse, onPaper, onPerformance, onReplay }: Dashb
         </button>
         <button type="button" className="dashboard-screen__secondary" onClick={onReplay}>
           GEÇMİŞE SARMA (SİMÜLASYON)
+        </button>
+        <button type="button" className="dashboard-screen__secondary" onClick={onBacktest}>
+          GERİYE DÖNÜK TEST (SİMÜLASYON)
         </button>
         <p className="dashboard-screen__intro">
           Kağıt işlemler yalnızca simülasyondur: gerçek emir oluşturulmaz veya gönderilmez.

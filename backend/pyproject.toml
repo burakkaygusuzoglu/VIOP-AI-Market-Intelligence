@@ -629,3 +629,89 @@ forbidden_modules = [
     "app.domain.risk.whatif",
 ]
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 12. A strategy is a rule, and a rule must not know a verified exchange
+# fact. If a policy could read this contract's tick size, its levels would
+# differ between instruments for reasons the rule never states - and it would be
+# carrying a mutable market fact it cannot vouch for. Product knowledge belongs
+# to the runner, which holds the snapshot frozen at the start of the run.
+#
+# Risk, paper trading and replay are forbidden here for the same reason: a
+# policy that could size a position, fill one, or ask what time the replay
+# thinks it is would be a second, unreviewed copy of an engine that exists.
+name = "A strategy policy decides, and knows nothing about products, money or storage"
+type = "forbidden"
+source_modules = ["app.domain.backtest"]
+forbidden_modules = [
+    "app.domain.futures",
+    "app.domain.instrument",
+    "app.domain.risk",
+    "app.domain.paper",
+    "app.domain.performance",
+    "app.domain.journal",
+    "app.domain.replay",
+    "app.domain.analysis",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+    "app.application",
+    "app.adapters",
+    "app.api",
+]
+
+[[tool.importlinter.contracts]]
+# Phase 12. Nothing underneath may consume the backtest package. An indicator, a
+# fill or a metric that could ask whether it was running inside a backtest would
+# be free to behave differently there - and a backtest is only evidence because
+# it is the same code on older data.
+name = "Nothing beneath backtest depends on it"
+type = "forbidden"
+source_modules = [
+    "app.domain.common",
+    "app.domain.instrument",
+    "app.domain.market",
+    "app.domain.risk",
+    "app.domain.futures",
+    "app.domain.paper",
+    "app.domain.performance",
+    "app.domain.journal",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.replay",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+forbidden_modules = ["app.domain.backtest"]
+
+[[tool.importlinter.contracts]]
+# Phase 12. The runner orchestrates; it computes nothing. Every number a run
+# reports comes from an engine that already existed - Phase 1 indicators,
+# Phase 3 sizing, Phase 9 fills, Phase 10 metrics - so the module is forbidden
+# the individual indicator routines and the P&L primitives that a second
+# implementation would start from.
+#
+# `app.domain.futures` is forbidden too: the runner works through the generic
+# product boundary, so a backtest of a non-futures product would not need this
+# module rewritten.
+name = "The backtest runner orchestrates engines and computes nothing"
+type = "forbidden"
+source_modules = ["app.application.backtest"]
+forbidden_modules = [
+    "app.adapters",
+    "app.api",
+    "sqlalchemy",
+    "app.domain.futures",
+    "app.domain.technical.momentum",
+    "app.domain.technical.smoothing",
+    "app.domain.technical.trend_strength",
+    "app.domain.technical.volatility",
+    "app.domain.technical.volume",
+    "app.domain.technical.vwap",
+    "app.domain.risk.margin",
+    "app.domain.risk.pnl",
+    "app.domain.risk.whatif",
+]
+allow_indirect_imports = true

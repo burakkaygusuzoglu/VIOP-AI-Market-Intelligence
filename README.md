@@ -224,18 +224,19 @@ marked `UNVERIFIED` rather than guessed.
 | Phase | Contents | State |
 | --- | --- | --- |
 | 0 | Foundation: architecture, config, health slice, Docker, tests | **Implemented** |
-| 1 | Market data + deterministic technical engine | Not started |
-| 2 | Market structure + regime | Not started |
-| 3 | Futures contracts + risk engine | Not started |
-| 4 | Multi-timeframe + evidence fusion + setup quality | Not started |
-| 5 | Beginner / Pro experience | Not started |
-| 6 | Claude Vision | Not started |
-| 7 | Claude synthesis | Not started |
-| 8 | Professional analysis UI | Not started |
-| 9 | Paper trading | Not started |
-| 10 | Journal + performance analytics | Not started |
-| 11 | Market replay + Learn mode | Not started |
-| 12 | Backtesting | Not started |
+| 1 | Market data + deterministic technical engine | **Implemented** |
+| 2 | Market structure + regime | **Implemented** |
+| 3 | Futures contracts + risk engine | **Implemented** |
+| 4 | Multi-timeframe + evidence fusion + setup quality | **Implemented** |
+| 5 | Beginner / Pro experience | **Implemented** |
+| 6 | Claude Vision | **Implemented** |
+| 7 | Claude synthesis | **Implemented** |
+| 8 | Professional analysis UI | **Implemented** |
+| 8.5 | Multi-asset architecture foundation | **Implemented** |
+| 9 | Paper trading | **Implemented** |
+| 10 | Journal + performance analytics | **Implemented** |
+| 11 | Market replay + Learn mode | **Implemented** |
+| 12 | Backtesting | **In progress** — Part 1 and Part 2A implemented, Part 2B not started, uncommitted |
 | 13 | Live architecture | Not started |
 | 14 | Shadow mode | Not started |
 | 15 | External data providers | Not started |

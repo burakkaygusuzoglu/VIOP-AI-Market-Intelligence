@@ -21,7 +21,10 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
-from app.adapters.persistence import replay_models  # noqa: F401  (registers the tables)
+from app.adapters.persistence import (  # noqa: F401  (registers the tables)
+    backtest_models,
+    replay_models,
+)
 from app.adapters.persistence.base import Base
 from app.adapters.persistence.database import Database
 from app.adapters.persistence.replay_models import ReplayCandleRow, ReplaySessionRow

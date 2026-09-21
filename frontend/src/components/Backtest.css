@@ -1,0 +1,206 @@
+/*
+ * Backtesting workspace (Phase 12 Part 2A).
+ *
+ * Reuses the application's existing tokens rather than introducing a palette.
+ * Outcome is never carried by colour alone: every status chip also carries its
+ * own words, so the meaning survives a monochrome screen and a screen reader.
+ */
+
+.backtest {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.backtest__lede {
+  max-width: 68ch;
+  color: var(--color-text-muted, #4a5568);
+}
+
+.backtest__beginner {
+  border: 1px solid var(--color-border, #d7dde5);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--color-surface-muted, #f7f9fc);
+}
+
+.backtest__beginner ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.backtest__banner {
+  border: 1px solid var(--color-border, #d7dde5);
+  border-left-width: 4px;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+}
+
+.backtest__banner--blocked,
+.backtest__banner--failed {
+  border-left-color: var(--color-danger, #b3261e);
+}
+
+.backtest__banner--pending {
+  border-left-color: var(--color-warning, #8a6d1f);
+}
+
+.backtest__tabs ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.backtest__tabs button {
+  border: 1px solid var(--color-border, #d7dde5);
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.backtest__tabs button.is-active {
+  background: var(--color-surface, #fff);
+  border-bottom-color: transparent;
+  font-weight: 600;
+}
+
+.backtest__tabs button:focus-visible,
+.backtest__panel :focus-visible {
+  outline: 3px solid var(--color-focus, #1a73e8);
+  outline-offset: 2px;
+}
+
+.backtest__panel {
+  border: 1px solid var(--color-border, #d7dde5);
+  border-radius: 0 8px 8px 8px;
+  padding: 1rem;
+}
+
+.backtest__announce {
+  min-height: 1.25rem;
+  color: var(--color-text-muted, #4a5568);
+}
+
+.backtest__error {
+  border-left: 4px solid var(--color-danger, #b3261e);
+  padding-left: 0.75rem;
+}
+
+.backtest__form fieldset {
+  border: 1px solid var(--color-border, #d7dde5);
+  border-radius: 6px;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.backtest__form label {
+  display: block;
+  margin-top: 0.75rem;
+  font-weight: 600;
+}
+
+.backtest__form input,
+.backtest__form select {
+  width: 100%;
+  max-width: 28rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--color-border, #d7dde5);
+  border-radius: 4px;
+}
+
+.backtest__hint,
+.backtest__empty {
+  color: var(--color-text-muted, #4a5568);
+  max-width: 68ch;
+}
+
+.backtest__params,
+.backtest__kv,
+.backtest__ledger {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.backtest__params li,
+.backtest__kv li,
+.backtest__ledger li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.backtest__pin {
+  font-size: 0.8rem;
+  border: 1px solid var(--color-border, #d7dde5);
+  border-radius: 999px;
+  padding: 0 0.5rem;
+}
+
+.backtest__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.backtest__table th,
+.backtest__table td {
+  border-bottom: 1px solid var(--color-border, #d7dde5);
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.backtest__status {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0 0.55rem;
+  font-size: 0.85rem;
+}
+
+.backtest__status--completed {
+  color: var(--color-success, #1e6b3a);
+}
+
+.backtest__status--failed {
+  color: var(--color-danger, #b3261e);
+}
+
+.backtest__status--pending,
+.backtest__status--running {
+  color: var(--color-warning, #8a6d1f);
+}
+
+.backtest__totals {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+}
+
+.backtest__pager {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .backtest__panel {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .backtest__totals {
+    grid-template-columns: 1fr;
+  }
+
+  .backtest__table {
+    font-size: 0.9rem;
+  }
+}

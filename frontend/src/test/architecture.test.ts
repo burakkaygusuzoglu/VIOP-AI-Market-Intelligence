@@ -293,19 +293,42 @@ describe('replay computes nothing and derives no cursor (Phase 11)', () => {
     }
   });
 
-  it('contains no backtest or optimisation concept (Phase 12 boundary)', () => {
+  it('contains no optimisation concept (Phase 12 boundary)', () => {
+    // Phase 12 Part 2A added the backtesting workspace, so the boundary moved:
+    // what must still be absent is *optimisation*, which this phase explicitly
+    // does not build. The previous version of this test banned the word
+    // "backtest" and only passed afterwards by an accident of capitalisation,
+    // which is worth recording - a guard that passes for the wrong reason is
+    // indistinguishable from one that works.
     for (const file of ALL) {
       const text = read(file);
       for (const banned of [
-        'runBacktest',
-        'backtestRun',
         'walkForward',
+        'walk_forward',
         'monteCarlo',
+        'monte_carlo',
         'optimizeParameters',
+        'optimiseParameters',
         'parameterSweep',
+        'gridSearch',
+        'strategyRanking',
+        'leaderboard',
         'shadowMode',
-        'strategyRunner',
       ]) {
+        expect(text, shortName(file)).not.toContain(banned);
+      }
+    }
+  });
+
+  it('never computes a financial quantity in the browser', () => {
+    // The backtest screen renders money that arrived as exact decimal strings.
+    // Parsing one into a JavaScript number would round a value the backend
+    // spent twelve phases keeping exact.
+    const backtest = ALL.filter((file) => shortName(file).includes('Backtest'));
+    expect(backtest.length).toBeGreaterThan(0);
+    for (const file of backtest) {
+      const text = read(file);
+      for (const banned of ['parseFloat(', 'Number(', '.reduce((']) {
         expect(text, shortName(file)).not.toContain(banned);
       }
     }

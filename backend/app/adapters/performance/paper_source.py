@@ -256,7 +256,7 @@ class SqlPaperPerformanceSource:
             grouped.setdefault(position_id, []).append((event_type, market_time, data))
 
         order = {position_id: index for index, position_id in enumerate(ids)}
-        records = [_fold(position_id, events) for position_id, events in grouped.items()]
+        records = [fold_ledger(position_id, events) for position_id, events in grouped.items()]
         records.sort(key=lambda record: order[record.position_id])
         fills = sum(
             1
@@ -324,7 +324,7 @@ class SqlPaperPerformanceSource:
         return tuple(
             record
             if record.position_id not in marks
-            else _replace_unrealized(record, marks[record.position_id])
+            else replace_unrealized(record, marks[record.position_id])
             for record in records
         )
 
@@ -446,16 +446,22 @@ def _row_disagreement(row: Any, position: Any, replayed_mark: Decimal | None) ->
     return None
 
 
-def _replace_unrealized(record: PositionOutcome, value: Decimal | None) -> PositionOutcome:
+def replace_unrealized(record: PositionOutcome, value: Decimal | None) -> PositionOutcome:
+    """The same outcome with its mark filled in. Shared with Phase 12."""
     from dataclasses import replace
 
     return replace(record, unrealized_gross=value)
 
 
-def _fold(
+def fold_ledger(
     position_id: str, events: Sequence[tuple[str, datetime | None, Mapping[str, Any]]]
 ) -> PositionOutcome:
-    """One position's ledger, read into one authoritative outcome record."""
+    """One position's ledger, read into one authoritative outcome record.
+
+    Public because Phase 12 reads its own ledger through the same fold. The
+    alternative - a second function that turned backtest events into outcomes -
+    is how two populations start disagreeing about what a fill was worth.
+    """
     creation = next((data for kind, _t, data in events if kind == "POSITION_CREATED"), None)
     if creation is None:  # pragma: no cover - sequence 1 is always the creation event
         raise PerformanceSourceUnavailableError(f"position {position_id} has no creation event")

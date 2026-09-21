@@ -1723,6 +1723,278 @@ to pause.
 Phase 11 adds four tables and no financial record among them: the money a
 replay makes stays in the Phase 9 ledger, where one engine owns it.
 
+## Deterministic backtesting (Phase 12, part 1)
+
+Phase 12 asks the same question Phase 11 asks a human - "what would I have done
+here?" - thousands of times without anybody watching. That is the whole risk:
+a replay leak is noticed by the person stepping through it, and a backtest leak
+is reported as a profit. So the phase adds **no second engine of any kind**.
+
+    domain/backtest/policy.py        what a rule may see: scalars at one
+            │                        boundary, never a series
+            │  strategies/           the reference rule, parameters and all
+            │  levels.py             making a derived level executable
+            │  run.py                run identity, statuses, resource bounds
+            │  fingerprint.py        BC-<digest> configuration · BR-<digest> run
+            ▼
+    application/backtest/service.py  the causal walk, and nothing else
+            │   port: BacktestStore
+            ▼
+    adapters/persistence/            four tables, no candles among them
+    adapters/performance/backtest_source.py   one run's outcomes, for Phase 10
+
+**Every number comes from an engine that already existed.** Market time is
+Phase 11's `coverage_end <= as_of` over Phase 11's immutable dataset, read by
+digest. Indicators are Phase 1's `compute_technicals`. Sizing is Phase 3's
+`size_for_product`, server-side, and it may refuse. Fills and P&L are Phase 9's
+`open_position` and `apply_observation`. Metrics are Phase 10's engine, fed
+through Phase 9's own fold - `fold_ledger` is imported from the paper source
+rather than reimplemented, because two functions turning events into outcomes
+is how two populations start disagreeing about what a fill was worth. The
+runner decides only *when* to ask each of them, and in what order.
+`test_backtest_parity.py` drives one trade through both the runner and the
+Phase 9 service and asserts the two ledgers are equal event for event.
+
+**The causal order is the phase.** At each boundary `T`: reveal the driver
+candle whose coverage ended at `T`; give it to the open position first, so a
+fill decided by that candle happens before anything is asked about it; read the
+confirmed readings; ask the strategy; run risk approval; create the position
+with `decision_time = T`. That last step is why a signal cannot enter on the
+candle that produced it - Phase 9 fills an entry on the first bar opening *at
+or after* the decision time, and the bar that closed at `T` opened before it.
+Next-bar entry is therefore enforced by the paper engine, not by a rule this
+module remembers to apply.
+
+**A strategy cannot read the future, by type.** `StrategyContext` carries
+scalars at the current boundary - `current`, `previous`, and higher-timeframe
+readings only for candles that have closed - never the series. There is no
+index for a policy to read past. Indicators are computed once over the whole
+driver series and indexed by boundary, which is valid only because Phase 1's
+values are causal; that property is *proven* by
+`tests/unit/backtest/test_indicator_causality.py` rather than assumed, so an
+indicator that stopped being causal fails a test instead of silently leaking.
+
+**A strategy also cannot read a verified product fact.** An import-linter
+contract forbids `app.domain.backtest` from reaching products, risk, paper
+trading, replay or storage. A rule that could read this contract's tick size
+would carry a mutable exchange fact it cannot vouch for, and would produce
+different levels on different instruments for reasons it never states.
+
+**Derived levels are aligned by the runner, and only ever made worse.** An ATR
+stop lands wherever the arithmetic lands, almost never on the price grid, and
+Phase 3 rightly refuses an off-grid level rather than snapping a number a
+*person* typed. A derived level still has to be placeable, so the runner - the
+one place holding the frozen `ProductPolicy` - rounds the stop and each target
+**away from the entry**: risk per unit grows, the position sizes smaller, and
+the reward becomes harder to reach. Rounding to the nearest tick would
+sometimes shrink the measured risk distance and silently inflate the size. The
+intended entry is never moved, because it is a price the market printed; an
+off-grid entry means the dataset and the product disagree, which is surfaced as
+a refusal. Alignment needs a verified increment - `ProductPolicy.price_increment()`,
+added in this phase - and without one the levels pass through untouched, after
+which Phase 3 declines the sizing because it cannot confirm they are placeable.
+The run then records a refusal rather than a trade at invented levels, which is
+stricter than aligning would have been and is the right way round: rounding to
+a grid nobody verified would manufacture the very fact that is missing. Every
+alignment that moved something says so in the decision trace.
+
+**Three prices, and only one of them is proposed.** A simulated entry involves
+the price the strategy *proposed*, the price Phase 9 actually *fills* at - the
+next bar's open - and the protective levels the runner aligns. Phase 3 has
+always checked the proposed entry, so an off-grid plan is refused. Nothing was
+checking the executed one, which meant a dataset one tick out of step with the
+product would have opened, stopped and closed positions at prices that product
+cannot quote, with every derived figure looking ordinary. The runner now
+refuses such a run outright (`DATASET_OFF_PRODUCT_GRID`), naming the first
+offending candle. It does not round the candle: a historical open is an
+authoritative market price and the dataset is immutable, so moving it would
+fabricate a trade at a price nobody paid. The check runs only against a
+*verified* increment, because an unconfirmed grid cannot convict a price. A
+fixed slippage that is not a whole number of ticks is refused for the same
+reason (`SLIPPAGE_OFF_PRODUCT_GRID`) - it is applied to an on-grid market price
+and would put every market-style fill off the grid. Phase 9's own rules are
+untouched; this is what a *backtest* additionally requires before it will run.
+
+**Sizing uses the level that will actually be placed.** Alignment happens
+before `size_for_product`, never after, so the approved quantity follows the
+final stop. A worked case in the tests: entry 100, planned stop 97.10, aligned
+stop 97.00, multiplier 10, risk budget 290. The planned stop would approve ten
+units; the aligned one approves nine. Sizing on the plan would have risked 300
+against a 290 budget - a small overstatement, always in the same direction.
+
+**One float becomes money, in one place.** The reference strategy reads an ATR
+`float` and produces `Decimal` prices. The conversion is `Decimal(str(value))`,
+the policy already used at every other float-to-money crossing in this
+repository: exact with respect to the float that was computed, inventing
+nothing. `Decimal(float)` would drag in the whole binary expansion, and
+quantising to chosen places would discard a digit the indicator produced. The
+multiplication is then done in `Decimal`, not in `float`, so the float error
+stops at one step. None of this makes an unexecutable price executable - the
+result still has to survive the grid.
+
+**Recovering an interrupted run is explicit.** A run row exists before the walk
+begins, so a killed process leaves a PENDING row with no result. Nothing
+resumes it automatically and nothing should: the walk's intermediate state is
+never written anywhere, so a resumption point invented afterwards would publish
+a result computed partly before the interruption and partly after. The workflow
+is `abandon(run_id)`, which terminalises the run as FAILED with the code
+`INTERRUPTED`, followed by a new attempt key. A COMPLETED run is refused - both
+by the runner and by the store, at the statement that would actually destroy
+the result - and abandoning twice is harmless. There is no job scheduler here.
+
+**Strategy rules are an allow-list, checked before any market is read.**
+`app/domain/backtest/registry.py` maps each identifier to the rule versions
+this build implements, as read-only data. An unknown identifier or version is
+refused (`STRATEGY_UNSUPPORTED` / `STRATEGY_VERSION_UNSUPPORTED`), never mapped
+onto whatever implementation exists now - a stored run's version string is only
+worth something if the pair is checked. Nothing imports by name, constructs a
+class from a string, or evaluates anything a caller supplied: the caller still
+hands in the policy object, and the registry answers one question about it. The
+table is injectable exactly as the resource bounds are, so a test can drive a
+scripted policy; production passes nothing and gets the shipped table.
+
+**A run is identified by what was asked, and by the attempt that asked it.**
+`BC-<digest>` fingerprints the configuration: dataset, symbol, driver
+timeframe, interval, strategy identity, version and parameters, simulation
+policy, risk policy, account and the frozen product snapshot, over one
+canonical JSON document. Two runs sharing it were asked the same question and
+must produce the same `result_digest` - which a test asserts. `BR-<digest>`
+derives the run id from the configuration and the caller's attempt key, so a
+repeated request returns the run that key already produced rather than
+recomputing it.
+
+**Persistence semantics, stated rather than implied.** The run row is created
+*before* the walk starts, so an interrupted run is visible as PENDING rather
+than invisible. Positions, events and decisions are written *only* at
+publication, in one transaction: the two outcomes are "nothing" and
+"everything", never a COMPLETED run holding half a ledger. A check constraint
+enforces the same thing independently of the code, and the event table carries
+Phase 9's append-only trigger. A retry with the same attempt key returns the
+run that key produced - including a PENDING or FAILED one. Re-running a failed
+configuration is a new attempt under a new key: the key identifies the
+*request*, not the intention.
+
+**A run's trades are not a person's trades.** They live in their own tables,
+and the performance source is scoped to one run *at construction* rather than
+by an argument, so cross-run contamination is not a question of remembering to
+pass the right parameter. Two hundred simulated trades never enter the
+population Phase 10 reports on when it is asked how someone's own judgement has
+been doing.
+
+**Limits are refused, not applied silently.** 2,500 boundaries, 200 positions,
+500 warm-up candles. Running the first 2,500 boundaries of a larger request and
+reporting it as the requested range would be a false statement about what was
+tested, so the refusal names the limit and says to narrow the interval. There
+is deliberately no separate cap on the decision trace: one record is written
+per boundary, so `max_boundaries` already bounds it, and a second number would
+read like a protection while protecting nothing.
+
+**Fixture metadata is not, and cannot become, financial authority.** Phase 12's
+tests price thousands of simulated positions against a contract built by a test
+provider whose values claim `VERIFIED_CURRENT_FACT`. That is a deliberate lie
+confined to the test process, and it is safe only because the path does not
+exist outside it: nothing in `app/` ever constructs a `ManualContractMetadataProvider`,
+the composition root sets `product_resolver = None` categorically rather than
+as the false branch of a condition, no setting or request field selects a
+provider, and the dependency type-checks anything found on app state. A
+deployment without a provider refuses backtesting with
+`PRODUCT_METADATA_UNAVAILABLE`, which is a refusal, not a fallback.
+
+**Nothing here is evidence that the reference strategy makes money.** The
+throughput fixture is a deterministic sawtooth and produces wins only; that is
+a property of the fixture. The suite therefore exercises the uncomfortable
+outcomes explicitly - a loss, a breakeven kept separate from a win, an unknown
+cost that yields no net figure at all - and the shipped strategy parameters are
+pinned by a test, so tuning them to flatter a fixture has to be a visible,
+argued edit. Simulated historical results do not guarantee future returns.
+
+Phase 12 adds four tables and no candles among them - a run names the dataset
+it read, because copying the market into a second table would mean two copies
+of the same facts and two things to keep immutable.
+
+## The backtesting API and workspace (Phase 12, part 2A)
+
+Part 1 built a runner nothing could reach. Part 2A gives it a surface, and the
+surface adds no authority of its own: every figure it returns was computed by
+an engine that already existed, and every field a client may send is a question
+rather than an answer.
+
+    api/routes/backtest.py        ten operations, no arithmetic
+    api/schemas/backtest.py       what a client may say - and may not
+    api/schemas/backtest_projection.py   records to responses, nothing derived
+
+**The request cannot state a result.** There is no field anywhere in the
+request models for a fill, a realized or unrealized amount, a metric, a
+decision, a risk approval, a digest, a status, a trace entry, a multiplier, a
+tick size, a margin or a candle. A body carrying one is a 422 *because the
+field does not exist* - `extra="forbid"` - not because it was inspected and
+rejected. Thirty parametrised tests attempt exactly that, one forged field at a
+time.
+
+**Reads are bounded, and opening a run does not load the run.** `store.get`
+hydrates every decision and every ledger, which is right for the runner and
+wrong for a screen. Part 2A added `head` - the row plus two `count(*)` - and
+paginated `trace_page` and `events_of`. A detail response is therefore a fixed
+size no matter how long the run was, and the trace, the positions and a
+position's ledger are separate pages that each carry their own total.
+
+**One registry, not two.** `GET /backtest/strategies` is projected from
+`app.domain.backtest.registry` and describes the reference rule by reading its
+own settings object rather than by retyping its values, so a parameter that
+changes in code cannot go on being advertised at its old one. The catalogue
+reports every parameter as `configurable: false`, and the form renders them
+read-only: the reference strategy's parameters are pinned, and offering inputs
+the backend would ignore is the kind of control that teaches people the
+software lies.
+
+**Idempotency is decided against the fingerprint, not the key.** Part 1 returned
+the earlier run for any repeat of a key. That is right for a retry and wrong
+for a key reused with a different question, which would answer something
+nobody asked - so the configuration fingerprint is computed first and a
+mismatch is a 409 `ATTEMPT_KEY_REUSED`. Concurrent duplicates still collapse to
+one run: the loser of the insert race re-reads the winner.
+
+**Exactly one terminal transition wins.** A run can be abandoned while it is
+being computed. Both guards sit *inside* the transaction that would do the
+damage rather than above it, because a check above the write is one two
+concurrent callers can both pass: `publish` refuses a run that already ended
+(`TerminalRunError` → 409), and `fail` refuses a run that already completed
+(`CompletedRunError`). An abandoned run never becomes COMPLETED because a stale
+worker finished, and a completed run never becomes FAILED.
+
+**`results_are_final` is derived from the status and nothing else.** A PENDING
+run has counts - it was created, and something may have stopped part-way - and
+those counts are not a result. The workspace keys every "is this a report?"
+decision off that one boolean, so a half-finished run cannot be dressed as one.
+
+**Nothing in the browser computes money.** Every amount crosses as an exact
+decimal string and is rendered as text. An architecture test forbids
+`parseFloat`, `Number(` and `.reduce((` in the backtest frontend files, and the
+Phase 10 payload is handed to Phase 10's own component unchanged rather than
+reshaped. An unmodelled fee renders as "komisyon modellenmedi" - there is no
+net figure at all, because unknown cost is not zero cost.
+
+**The capability is stated before the form is filled in.** A default deployment
+composes no verified metadata provider, so `GET /backtest/capability` says so,
+names `PRODUCT_METADATA_UNAVAILABLE`, and the workspace disables the run button
+with the reason visible. A run requested anyway is refused - never reported as
+a tidy zero-trade success.
+
+**A defect is reported as a defect.** An unexpected exception from a strategy
+is caught at the run boundary, logged with its stack on the server, and
+answered with a 500 carrying a fixed sentence and the run id - never the
+exception's text, which may name a module, a path or a connection string. The
+run is terminalised as FAILED with the code `INTERNAL_ERROR` rather than left
+PENDING, so it cannot read as work still in progress, and the error kind is
+`INTERNAL`, distinct from every refusal: a programming bug must never send
+somebody looking for contract metadata they were never missing.
+
+**Capability is read from the thing that refuses.** `GET /backtest/capability`
+and the runner both consult `get_product_resolver`. They previously consulted
+different dependencies and agreed only because production composes neither -
+which a browser run with one composed immediately exposed. One question, one
+source.
+
 ## Cross-cutting decisions
 
 **Decimal at the data boundary, float inside the indicators.** Candle OHLCV

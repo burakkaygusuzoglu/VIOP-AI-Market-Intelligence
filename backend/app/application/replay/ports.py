@@ -121,6 +121,17 @@ class ReplayStore(Protocol):
 
     async def get_dataset(self, dataset_id: str) -> StoredDataset | None: ...
 
+    async def list_datasets(
+        self, *, offset: int, limit: int
+    ) -> tuple[tuple[StoredDataset, ...], int]:
+        """One bounded page of stored datasets, newest first, with the total.
+
+        Added in Phase 12 Part 2A so a backtest can be pointed at a dataset
+        that already exists. It reads the dataset rows and their per-timeframe
+        summaries - never candles.
+        """
+        ...
+
     async def candles(
         self,
         dataset_id: str,

@@ -138,6 +138,19 @@ export const CAPABILITIES: readonly Capability[] = [
     detail: 'Canlı piyasa verisi sağlayıcısı yok.',
   },
   {
+    id: 'simulated-live-stream',
+    label: 'Canlı izleme (simüle geçmiş akış)',
+    // Phase 13 Part 2A. Real routes, a real stream and the real Part 1 market
+    // state - over *stored historical* datasets. Its provenance is
+    // SIMULATED_HISTORICAL_STREAM and its market currency HISTORICAL, so it is
+    // available now without making `live-analysis` (a real exchange feed) any
+    // less unimplemented. Local development only: production composes none.
+    state: 'AVAILABLE_NOW',
+    endpoint: 'POST /api/live/sessions',
+    detail:
+      'Daha önce yüklenmiş geçmiş veri kümeleri canlı akış altyapısı üzerinden oynatılır. Borsaya bağlı değildir ve fiyatlar güncel fiyat değildir. Yalnızca yerel geliştirme ortamında açıktır; kimlik doğrulama olmadan herkese açık kurulumda kapalıdır.',
+  },
+  {
     id: 'paper-trading',
     label: 'Kağıt üzerinde işlem (simülasyon)',
     // Phase 9. The engine, the ledger, persistence and every route exist and are

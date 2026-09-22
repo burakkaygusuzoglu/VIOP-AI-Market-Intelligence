@@ -126,6 +126,18 @@ class Settings(BaseSettings):
     synthesis_max_context_entries: int = Field(default=120, gt=0)
 
     max_request_bytes: int = Field(default=48 * 1024 * 1024, gt=0)
+
+    # ---------- Live simulation (Phase 13) ----------
+    # The live workspace plays stored historical datasets over an
+    # unauthenticated API that holds a task and memory per session. It is
+    # therefore OFF unless explicitly enabled, and it is never composed when
+    # APP_ENV=production, whatever this says. A missing or ambiguous
+    # deployment configuration must not open a resource-consuming endpoint.
+    live_simulation_enabled: bool = False
+    # Seconds of silence before the event stream sends a transport heartbeat.
+    # A heartbeat says only that the connection is alive; it touches no market
+    # state. Bounded so a typo cannot make an idle stream look dead or spin.
+    live_heartbeat_seconds: float = Field(default=15.0, ge=0.5, le=300.0)
     """Outer ceiling on an HTTP request body, enforced before it is read.
 
     Distinct from every per-field limit: those decide what an *analysis* will
@@ -216,6 +228,15 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def live_simulation_composed(self) -> bool:
+        """Whether the live simulation workspace may be composed.
+
+        Both conditions, always: an explicit opt-in, and an environment that
+        says it is development or test. Production never, even when opted in.
+        """
+        return self.live_simulation_enabled and self.app_env in ("development", "test")
 
 
 @lru_cache(maxsize=1)

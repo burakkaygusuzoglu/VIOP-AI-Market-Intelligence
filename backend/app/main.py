@@ -14,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.adapters.live.dataset_playback import ReplayDatasetCatalog
 from app.adapters.market_data.csv_provider import CsvCandleTextParser
 from app.adapters.performance.backtest_source import BacktestRunPerformanceSource
 from app.adapters.performance.paper_source import SqlPaperPerformanceSource
@@ -40,11 +41,14 @@ from app.api.routes.analysis import (
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.backtest import router as backtest_router
 from app.api.routes.health import router as health_router
+from app.api.routes.live import local_request_policy
+from app.api.routes.live import router as live_router
 from app.api.routes.paper import router as paper_router
 from app.api.routes.performance import router as performance_router
 from app.api.routes.replay import router as replay_router
 from app.api.routes.screenshots import get_analyzer
 from app.api.routes.screenshots import router as screenshots_router
+from app.application.live.workspace import LiveWorkspace
 from app.application.performance.service import PerformanceService
 from app.application.use_cases.get_liveness import GetLiveness
 from app.application.use_cases.get_system_health import GetSystemHealth
@@ -150,6 +154,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
 
         application.state.backtest_performance = backtest_performance
+        # Phase 13. The live workspace plays *stored* historical datasets
+        # through the Part 1 streaming machinery; its provenance is the
+        # constant SIMULATED_HISTORICAL_STREAM and no setting changes that. It
+        # holds a task and candle books per session and this application has
+        # no authentication, so it is composed only on an explicit opt-in
+        # (LIVE_SIMULATION_ENABLED=true) in development or test - never in
+        # production, and never because a variable was missing. Everywhere
+        # else every live route answers LIVE_DISABLED. No contract metadata
+        # provider is passed, as everywhere else.
+        live_workspace: LiveWorkspace | None = (
+            LiveWorkspace(
+                catalog=ReplayDatasetCatalog(application.state.replay_store),
+                clock=clock,
+                parser=candle_parser,
+                contracts=None,
+            )
+            if settings.live_simulation_composed
+            else None
+        )
+        if settings.live_simulation_enabled and live_workspace is None:
+            logger.warning(
+                "live simulation opt-in ignored",
+                extra={"app_env": settings.app_env},
+            )
+        application.state.live_workspace = live_workspace
+        application.state.live_request_policy = (
+            None if live_workspace is None else local_request_policy(settings.cors_origins)
+        )
+        application.state.live_heartbeat_seconds = settings.live_heartbeat_seconds
         application.state.get_liveness = GetLiveness(
             clock=clock,
             app_env=settings.app_env,
@@ -173,6 +206,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             yield
         finally:
+            # Owned tasks first: every live session is cancelled and awaited
+            # before the store it reads from goes away.
+            if live_workspace is not None:
+                await live_workspace.shutdown()
             await database.dispose()
             logger.info("application stopped")
 
@@ -217,6 +254,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(performance_router, prefix=settings.api_prefix)
     application.include_router(replay_router, prefix=settings.api_prefix)
     application.include_router(backtest_router, prefix=settings.api_prefix)
+    application.include_router(live_router, prefix=settings.api_prefix)
 
     # The composition root fills the provider seams. Overriding a dependency is
     # how the *application* injects its adapters here, not a test-only hook -

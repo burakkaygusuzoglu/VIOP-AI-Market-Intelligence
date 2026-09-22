@@ -30,9 +30,10 @@ const STATE_LABEL: Record<CapabilityState, string> = {
 const FUTURE_MODULES = [
   { name: 'İzleme listesi', phase: 'Sonraki faz', reason: 'Canlı piyasa verisi gerektirir.' },
   {
-    name: 'Canlı kurulum kartları',
-    phase: 'Faz 13',
-    reason: 'Canlı veri mimarisi bu fazda değil.',
+    name: 'Gerçek zamanlı borsa verisi',
+    phase: 'Faz 15',
+    reason:
+      'Lisanslı bir piyasa verisi sağlayıcısı yok. Canlı izleme ekranı yalnızca saklanan geçmiş veriyi simüle akış olarak oynatır.',
   },
   {
     name: 'Strateji ve kurulum performansı',
@@ -48,6 +49,7 @@ export interface DashboardProps {
   readonly onPerformance: () => void;
   readonly onReplay: () => void;
   readonly onBacktest: () => void;
+  readonly onLive: () => void;
 }
 
 export function Dashboard({
@@ -56,6 +58,7 @@ export function Dashboard({
   onPerformance,
   onReplay,
   onBacktest,
+  onLive,
 }: DashboardProps) {
   return (
     <div className="dashboard-screen">
@@ -81,6 +84,9 @@ export function Dashboard({
         </button>
         <button type="button" className="dashboard-screen__secondary" onClick={onBacktest}>
           GERİYE DÖNÜK TEST (SİMÜLASYON)
+        </button>
+        <button type="button" className="dashboard-screen__secondary" onClick={onLive}>
+          CANLI İZLEME (SİMÜLE GEÇMİŞ AKIŞ)
         </button>
         <p className="dashboard-screen__intro">
           Kağıt işlemler yalnızca simülasyondur: gerçek emir oluşturulmaz veya gönderilmez.

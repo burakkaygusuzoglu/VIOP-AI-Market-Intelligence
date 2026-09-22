@@ -715,3 +715,110 @@ forbidden_modules = [
     "app.domain.risk.whatif",
 ]
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 13. The live domain describes what a stream said and what is believed
+# about it. It must not reach a web framework, a database, an adapter or the
+# application layer, and it must not reach anything that holds money or
+# positions: receiving a candle has no route to a trade, and this contract is
+# what makes that structural rather than a promise.
+name = "The live domain observes; it knows no transport, storage, money or positions"
+type = "forbidden"
+source_modules = ["app.domain.live"]
+forbidden_modules = [
+    "fastapi",
+    "sqlalchemy",
+    "app.adapters",
+    "app.api",
+    "app.application",
+    "app.domain.paper",
+    "app.domain.backtest",
+    "app.domain.performance",
+    "app.domain.journal",
+    "app.domain.risk",
+    "app.domain.futures",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+
+[[tool.importlinter.contracts]]
+# Phase 13. Nothing underneath live may depend on it. An indicator, a fill, a
+# metric, a replay or a backtest that could ask whether its candle arrived over
+# a stream would be free to behave differently there - and the value of the
+# live architecture is that it is the same engines, fed differently.
+name = "Nothing beneath live depends on it"
+type = "forbidden"
+source_modules = [
+    "app.domain.common",
+    "app.domain.instrument",
+    "app.domain.market",
+    "app.domain.risk",
+    "app.domain.futures",
+    "app.domain.paper",
+    "app.domain.performance",
+    "app.domain.journal",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.replay",
+    "app.domain.backtest",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+    "app.application.analysis",
+    "app.application.paper",
+    "app.application.performance",
+    "app.application.replay",
+    "app.application.backtest",
+]
+forbidden_modules = ["app.domain.live", "app.application.live"]
+
+[[tool.importlinter.contracts]]
+# Phase 13. Live orchestration calls the existing analysis pipeline and
+# nothing that trades. It may not construct an indicator of its own - the
+# individual routines are forbidden - and it may not reach paper trading,
+# replay positions or backtest runs, so a stream cannot open a position even
+# by mistake.
+name = "Live orchestration analyses with existing engines and cannot trade"
+type = "forbidden"
+source_modules = ["app.application.live"]
+forbidden_modules = [
+    "app.adapters",
+    "app.api",
+    "sqlalchemy",
+    "app.application.paper",
+    "app.application.replay",
+    "app.application.backtest",
+    "app.application.performance",
+    "app.application.synthesis",
+    "app.domain.paper",
+    "app.domain.backtest",
+    "app.domain.technical.momentum",
+    "app.domain.technical.smoothing",
+    "app.domain.technical.trend_strength",
+    "app.domain.technical.volatility",
+    "app.domain.technical.volume",
+    "app.domain.technical.vwap",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 13 Part 2A. The live API exposes a simulated stream and the existing
+# analysis. It must have no route to anything that trades, simulates a fill or
+# narrates with a model: a stream request, an event or an analysis request is
+# never one import away from a position. Direct imports only - the analysis
+# projection it reuses legitimately reaches deeper modules on its own.
+name = "The live API can stream and analyse but cannot trade or narrate"
+type = "forbidden"
+source_modules = ["app.api.routes.live", "app.api.schemas.live", "app.api.schemas.live_projection"]
+forbidden_modules = [
+    "app.application.paper",
+    "app.application.backtest",
+    "app.application.replay",
+    "app.application.synthesis",
+    "app.application.vision",
+    "app.domain.paper",
+    "app.domain.backtest",
+    "app.adapters",
+]
+allow_indirect_imports = true

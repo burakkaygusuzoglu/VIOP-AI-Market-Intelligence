@@ -207,11 +207,19 @@ describe('no later-phase leakage (§38)', () => {
         'brokerSession',
         'Midas',
         'WebSocket(',
-        'EventSource(',
       ]) {
         expect(text, shortName(file)).not.toContain(banned);
       }
     }
+  });
+
+  it('opens a server event stream in exactly one transport module (Phase 13 Part 2A)', () => {
+    // Phase 8 banned `EventSource(` everywhere as later-phase leakage. Phase 13
+    // Part 2A is that phase, approved, so the boundary moved rather than
+    // vanished: one module - the live transport - may open a stream, and it
+    // validates every message. A screen that opened its own would bypass that.
+    const owners = ALL.filter((file) => read(file).includes('new EventSource('));
+    expect(owners.map(shortName)).toEqual(['api/live.ts']);
   });
 
   it('never tells a person an order was sent', () => {

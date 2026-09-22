@@ -1995,6 +1995,397 @@ different dependencies and agreed only because production composes neither -
 which a browser run with one composed immediately exposed. One question, one
 source.
 
+## Live market state (Phase 13, part 1)
+
+Part 1 is the backend half of live streaming: taking in candle events,
+deciding which ones are confirmed facts, and saying honestly whether the
+picture is current. It adds **no indicator, no structure engine, no score and
+no trade path**. Live analysis is the Phase 8 pipeline run over confirmed
+candles, the same way replay (Phase 11) and backtesting (Phase 12) run it.
+Part 2A (the API, the SSE transport and the Live Intelligence screen) is
+described in the next section; Part 2B (browser end-to-end tests and the final
+mutation and security review) is not started.
+
+    domain/live            events · validation · book · state · alerts · limits
+            │              pure; no clock read, no I/O, no money, no positions
+            ▼
+    application/live       ports (LiveMarketDataProvider, LiveSubscription,
+            │              BackfillCapable) · BoundedEventBuffer ·
+            │              LiveSession · LiveSessionRegistry
+            ▼
+    adapters/live          mock_stream.py: MockStreamProvider,
+                           MockBackfillProvider, MockPushProvider, ManualClock
+
+**The only provider is a simulation, and it says so.** `StreamProvenance` has
+one member, `SIMULATED_HISTORICAL_STREAM`. The provider declares it as a class
+constant, and a `RawCandleEvent` has no provenance field, so no event can claim
+to be exchange data. There is no real feed, no credential, no network code and
+no paid data. `tests/unit/live/test_live_boundary.py` checks this mechanically.
+
+**Three clocks, never collapsed.** *Event time* is when the market says the
+candle happened. *Receive time* comes from the injected clock when the event
+arrives. *Audit time* is when analysis was requested. Freshness is measured
+from receive time. Analysis runs `as of` the latest confirmed coverage end,
+which is market time. Replaying a March fixture in September is honest because
+of this: the data is fresh in the sense that it just arrived, and it is still
+March data.
+
+**Untrusted until validated.** `RawCandleEvent` types every field as `object`.
+`validate` either returns an `Observation` or a `Rejection` with a code. It
+never clamps, rounds, re-times or fills in a value. It refuses floats, naive
+timestamps, non-finite or out-of-bounds decimals, inconsistent OHLC,
+off-grid open times (checked for timeframes up to 1H), a close reported before
+its interval ended, a forming update outside its interval, events from the
+future beyond `max_clock_skew`, hostile symbols and malformed sequences.
+Rejection details never repeat the payload.
+
+**FORMING and CLOSED only.** A forming candle is kept separately and is never
+part of `confirmed()`. It is dropped on disconnect and never goes into
+analysis.
+
+**Completeness is proven, not assumed.** Each timeframe's `CandleBook` holds its
+closed candles and reports integrity: `COMPLETE`, `GAPPED`, `DISCONTINUOUS`,
+`CONFLICTED` or `UNVERIFIED`. Three different facts are kept apart:
+
+- *provider sequence continuity*: the provider skipped no number;
+- *interval coverage*: every grid interval between two confirmed candles holds
+  a candle;
+- *exchange session boundaries*: which intervals the market was closed for.
+  There is no verified calendar, so this is never known and never assumed.
+
+A sequenced provider's contract is one consecutive number per closed interval
+of the stream's grid. The contract is checked against time on every new
+candle:
+
+- If the number jumps by exactly as many intervals as the time does, the lost
+  candles are identified (`GAPPED`). A late candle may fill them only if it
+  carries the right number for the right interval.
+- If the time jumps further than the number, for example contiguous numbers
+  across an overnight jump, the result is a `TEMPORAL_GAP`
+  (`DISCONTINUOUS`). It might be a session break, an interval with no trades,
+  or lost candles, and nothing here can tell which.
+- If the number jumps further than the time, the provider has broken its
+  contract. This is a `SEQUENCE_MISMATCH` (`DISCONTINUOUS`), and no "missing"
+  candle is waited for, because no interval exists for it.
+
+An unsequenced stream only has the time check: any time jump is a
+`TEMPORAL_GAP`, and a late candle is refused. A forming candle more than one
+interval ahead of the last confirmed candle proves that closed intervals went
+by unreceived. The book stays `UNVERIFIED` until the confirmed history catches
+up.
+
+The Part 1 closeout corrected an earlier rule that treated contiguous numbers
+across a time jump as a session break.
+
+**Duplicates and corrections.** An identical repeat is `DUPLICATE`: it does
+nothing, and it does not refresh freshness, so a feed that keeps repeating
+itself cannot look alive. A different value for a candle already confirmed is
+a `CONFLICT`. The stored candle is not rewritten, the correction is
+quarantined, and the timeframe becomes `CONFLICTED` until the conflict scrolls
+out of the bounded window.
+
+**Connection, freshness and integrity are separate questions.** Connection
+states are `INITIALIZING → CONNECTED ⇄ DISCONNECTED → RECOVERING → CONNECTED`,
+and any state can go to `TERMINATED` with a `TerminationReason`. Repeated
+signals do nothing. `CONNECTED` during `RECOVERING` does not end recovery: only
+the next contiguous closed candle does, because a provider saying "I'm back"
+proves nothing about what was missed. Freshness (`NO_DATA`, `FRESH`, `STALE`)
+is per timeframe against an explicit `FreshnessPolicy`. It is not derived from
+any market's hours. There is no `MARKET_CLOSED` state because there is no
+verified calendar.
+
+Freshness is *transport* freshness: it shows that valid observations are
+still arriving. It is not *market currency*. `MarketCurrency` comes from
+provenance alone, through `market_currency_of`, and for the simulated stream
+it is always `HISTORICAL`. A March candle received in September is `FRESH`
+and still `HISTORICAL`. Snapshots and analyses carry both provenance and
+currency, and both refuse to be built with a currency that does not follow
+from the provenance. Candle times are never compared with a wall clock. A timeframe is `AVAILABLE` only when it is connected (or
+recovering), fresh, `COMPLETE`, and has at least one closed candle. Otherwise
+*every* reason is listed.
+
+**Reconnect and backfill.** On `DISCONNECTED → CONNECTED` the session asks a
+`BackfillCapable` provider for closed candles after the last sequence number,
+up to `backfill_limit`. It validates them like live data and places them
+under the sequence-against-time rule above. Only a new newest candle ends the
+wait for continuity. A late fill of an older hole says nothing about the time
+since the disconnect, so it does not end the wait (corrected in the closeout).
+A provider without backfill leaves the timeframe waiting until the live stream
+proves or disproves continuity. Reconnecting never hides a missing candle.
+
+**Backpressure is structural.** A subscription is an async iterator the
+session pulls from, so a pull provider cannot outrun the consumer. A push
+provider writes into a `BoundedEventBuffer`. When it overflows, the buffer
+latches, emits `OVERFLOW`, and the session terminates with `OVERLOADED`. It
+does not drop events silently and carry on with a hole it cannot see.
+
+**Everything is bounded.** `LiveLimits`: 2,500 closed candles per timeframe,
+500 enumerated missing sequences, 200 recorded rejections, 20 reconnects, and
+a symbol at most 32 characters. `LiveSessionRegistry` holds at most 8
+sessions. Measured memory stops growing at the cap.
+
+**Trimming cannot launder a gap.** Completeness is a claim about the retained
+window, which is the only thing analysis reads. It holds only if every
+adjacent pair in the window was checked when it arrived and no unresolved
+issue lies inside the window. An issue leaves the record only when it lies
+wholly before the oldest retained candle:
+
+- recorded missing numbers at or below the oldest retained sequence;
+- an overflowed gap only when *every* number it could not enumerate is at or
+  below that floor (the ceiling is tracked);
+- a discontinuity only when the candle after the jump is the oldest retained.
+
+Each issue that leaves the window unresolved is counted in
+`unresolved_trimmed`, so the history is disclosed and not forgotten.
+Previously the overflow flag was never cleared at all. That was safe, but it
+meant an overflowed book could never recover.
+
+**Analysis is on demand, reused and cached.** `confirmed_analysis()` takes the
+available timeframes, serialises their confirmed candles with the canonical
+`candles_to_csv`, which replay now shares instead of keeping a private copy, and calls
+`run_analysis` with a clock pinned to the market `as of` time. Excluded
+timeframes are reported with their reasons, and missing ones are never
+resampled. If nothing is available, it raises `LiveAnalysisUnavailableError`
+instead of returning a partial answer as if it were complete. The result is
+cached against a fingerprint (the available timeframes, their book versions,
+the account and the risk policy), so repeated requests on an unchanged book do
+no work. `last_analysis()` keeps the previous result visible after the data
+goes stale, marked `current=False`. `current` is recomputed on every call and
+never stored. It is true only while the same timeframes are available *now*,
+with the same book versions. A later receive time, a `CONNECTED` notice, a
+duplicate, a trim, a gap scrolling out, a conflict or a forming candle ahead
+of confirmed history cannot restore it on their own. `current` describes the
+stream, not the market; the analysis's `market_currency` answers the market
+question. Receiving data never triggers analysis,
+never calls Claude, and never opens a position.
+
+**Metadata trust is unchanged.** The session passes the injected
+`ContractMetadataProvider` (production: none) to `run_analysis`. A stream
+symbol establishes no multiplier, tick or expiry, and the result reports
+`contract_metadata_verified = False` unless a verified provider was composed.
+
+**Aggregation is deliberately absent.** The mock emits native candles for each
+timeframe. Building a 1H candle from 5M ones on a live feed needs verified
+window alignment and session boundaries, and Part 1 has neither. A timeframe
+the stream does not supply is reported missing.
+
+**Failures are typed and logged safely.** A provider failure terminates the
+session with `PROVIDER_ERROR`. The log records only the symbol, the stage and
+the exception *type*, never the message, which may carry a connection string.
+Cancellation terminates with `CANCELLED` and is re-raised. The subscription is
+always closed.
+
+**State is ephemeral.** Nothing is persisted and there is no migration. After
+a restart a session starts in `INITIALIZING` with empty books, so nothing from
+before the restart is presented as current.
+
+Import-linter holds the shape: the live domain imports no transport, storage,
+money or positions; nothing beneath live depends on it; and live orchestration
+reaches analysis only through the existing engines, with no path to paper,
+backtest or execution code (34 contracts).
+
+## The live API and workspace (Phase 13, part 2A)
+
+Part 2A exposes Part 1 over HTTP and builds the Live Intelligence screen. It
+still adds no market engine: integrity, freshness, availability and alerts
+come from Part 1, and the analysis comes from Phase 8. What it adds is a
+*source*, a *workspace* that owns sessions, a *transport*, and a *screen*.
+
+    adapters/live/dataset_playback.py   ReplayDatasetCatalog: stored replay
+            │                           datasets as simulated sources;
+            │                           PacedPlaybackProvider plays them
+            ▼
+    application/live/workspace.py       LiveWorkspace: tasks, bounded timeline,
+            │   port: SimulatedSourceCatalog   bounded subscribers, limits,
+            │                           analysis serialisation, shutdown
+            ▼
+    api/routes/live.py                  /api/live/capability · /sources
+                                        /sessions · /sessions/{id}
+                                        /{id}/cancel · DELETE /{id}
+                                        /{id}/timeline · /{id}/analysis
+                                        /{id}/events  (Server-Sent Events)
+            ▼
+    frontend screens/Live.tsx           api/live.ts (the only EventSource)
+                                        domain/live.ts (client guards)
+
+**The source is stored history, not an invented feed.** A live session plays
+a dataset somebody already uploaded to replay or backtesting, identified by
+its content-derived `RD-…` id. The playback reads a bounded window in SQL (the
+last N candles of the finest timeframe, and the coarser ones over the same
+market stretch), attaches the dataset's own label (the replay store keeps
+candles without a symbol), and emits closed candles only. Emitting "forming"
+states for a stored candle would mean inventing intermediate prices. Sequence
+numbers are positions in the window, so a hole in the dataset shows up as an
+unexplained TEMPORAL_GAP rather than as an asserted loss. Five identities stay
+separate: the stream (`LS-…`, minted by the server with `secrets`), the
+dataset, the provider (`STORED_DATASET_PLAYBACK`), the instrument *label*,
+and a financial contract identity, which is `NOT_ESTABLISHED` and has no field
+that could fill it in.
+
+**Transport: REST for control, SSE for updates.** The browser never sends
+market data, so a two-way socket would add surface with nothing to carry. SSE
+passes through the existing nginx `/api/` proxy. The route sets
+`X-Accel-Buffering: no`, and this was verified against the running
+containers: events arrived one per second through nginx with no proxy
+change. Each `data:` is a `viop.live.v1` envelope with `session_id`,
+`event_id`, `kind`, `server_time`, `cursor` and the minimal payload: the
+timeline entry and the session snapshot after it. The kinds are:
+
+- `STATE`: the authoritative snapshot, sent first on every connection.
+- `TIMELINE`: one new entry.
+- `RESYNC_REQUIRED`: the reason is overflow, a cursor not retained, or a
+  cursor this process never issued.
+- `END`: the session is over, and the response closes.
+- `HEARTBEAT`: transport liveness only. It carries no `id:` line, so it can
+  never move `Last-Event-ID`. It touches no market state. It carries the
+  current cursor so the client can tell it missed something.
+
+**Resynchronisation, not replay.** A client subscribes with `?after=<cursor>`
+(or `Last-Event-ID`). Retained entries after it are sent, then `STATE`. A
+cursor older than the retained timeline (500 entries), or newer than anything
+this process issued, gets `RESYNC_REQUIRED`. The browser client closes its
+`EventSource` on any error rather than letting the browser retry blind. It
+then re-reads the snapshot and timeline and reopens from the snapshot's
+cursor. A skipped cursor, or a heartbeat showing a newer one, triggers the
+same path. After a backend restart the session id is a 404 that says sessions
+are not kept across restarts. Nothing is resurrected.
+
+**Subscribers read; they never own.** Limits are 4 subscribers per session
+and 16 in total. Each has a 64-notification queue. On overflow the queue is
+cleared and replaced by one `RESYNC_REQUIRED`, and the subscriber is then
+closed (Part 2B), so it is never fed a tail that skips what it missed.
+Observations are never lost, because every candle reaches the session's books
+before any subscriber hears of it. A subscriber disconnecting closes only its own subscription.
+One view is built per timeline entry and shared by all readers.
+
+**Lifecycle and task safety.** There is one task per session, owned by the
+workspace. `cancel` asks the task to stop and waits for it with
+`asyncio.wait`, so the task's own cancellation is never mistaken for the
+caller's. The provider subscription is closed, and the session is kept for
+inspection. `DELETE` also releases the slot. Shutdown cancels every task and
+awaits them all before the database is disposed. A task cancelled before its
+first step is finished explicitly and recorded as CANCELLED, never as a
+provider fault. Every end is recorded with its origin: `STREAM`,
+`USER_CANCELLED`, `DEADLINE` or `SHUTDOWN`.
+
+**Bounds.**
+- Sessions: 8 (Part 1's registry). An ended session nobody is reading may be
+  evicted to make room; a running or watched one never is.
+- Creations: 12 per minute.
+- Window: 50 to 1,000 candles (and Part 1's 2,500 cap still applies).
+- Session duration: 30 minutes.
+- Timeline pages: at most 100 entries.
+- Analyses: 2 concurrent across sessions, 1 per session.
+
+**Freshness for a playback is a stated receive-clock rule.** Each timeframe's
+threshold is three times the average receive-time gap between two of its
+candles in that playback, and never under ten seconds. It follows from the
+pacing and not from any market's hours.
+
+**Analysis stays on demand and single-flight.** `POST …/analysis` takes an
+optional account and risk, never data. It waits on the session's lock, so a
+second concurrent request is served from the Part 1 cache (`reused: true`).
+It returns the Phase 8 `AnalysisResponse` with synthesis `NOT_APPLICABLE`:
+live never calls a language model. The response carries provenance,
+`market_currency: HISTORICAL`, `market_as_of` (market time) and
+`requested_at` (server time). When nothing is available it returns a typed
+409 with every timeframe's reasons.
+
+**Every response says what it is.** Provenance and market currency are single
+`Literal`s on the response models and single `z.literal`s in the browser. A
+response calling itself an exchange feed or a current market fails validation
+on both sides.
+
+**Local development only.** There is no authentication and no per-user
+isolation. As first built, the workspace was composed whenever `APP_ENV` was not
+`production`, which included an *unset* `APP_ENV`. Part 2B replaced that with
+an explicit opt-in and a loopback-only deployment (next section). Where the
+workspace is not composed, `/api/live/capability` says `DISABLED` and every
+other live route answers `503 LIVE_DISABLED`. A public deployment needs
+authorisation and resource isolation first. CORS is unchanged.
+
+**The screen.** One `EventSource`, in `api/live.ts` (the architecture test
+moved from "no `EventSource` anywhere" to "exactly this module"). The pure
+client guards in `domain/live.ts` ignore:
+- a message for another session;
+- a message from a replaced stream generation;
+- a timeline event that is not exactly one past the last cursor, which
+  triggers a resync instead.
+
+REST reads use `AbortController` and are applied only if the generation they
+started under is still current.
+
+The workspace has five tabs: GENEL BAKIŞ, ZAMAN DİLİMLERİ, ANALİZ, ZAMAN
+ÇİZELGESİ and UYARILAR. The "SİMÜLE GEÇMİŞ AKIŞ — SIMULATED HISTORICAL STREAM"
+banner is shown in every mode. Transport freshness and market currency are
+shown side by side ("AKIŞ TAZE" next to "GEÇMİŞ VERİ — güncel fiyat değil").
+Provider connection and available-timeframe count are also side by side, and
+there is never a single green light. The browser's own connection is shown
+separately and labelled as not the provider. The confirmed-analysis panel
+reuses the existing `FinalActionCard`, `TimeframeLadder`, `WhyPanel` and,
+in Pro mode, `TechnicalPanel`. Nothing on the screen is a trade action.
+
+## The live deployment boundary (Phase 13, part 2B)
+
+Part 2B validated Part 2A against the real stack and changed what the
+validation showed to be wrong. The changes below are rules, not
+recommendations, and each is pinned by a test.
+
+**The live workspace is opt-in, and production never composes it.** It is
+composed only when `LIVE_SIMULATION_ENABLED=true` *and* `APP_ENV` is
+`development` or `test` (`Settings.live_simulation_composed`).
+
+| Configuration | Result |
+| --- | --- |
+| `APP_ENV` unset | Defaults to `development`, but the opt-in is off: not composed. Before Part 2B this case composed the workspace. |
+| `APP_ENV` empty, misspelled, differently cased (`PRODUCTION`) or unknown | The settings refuse to load, so the application does not start at all. |
+| `APP_ENV=production` | Never composed. An opt-in there is logged as ignored. |
+| `LIVE_SIMULATION_ENABLED` empty or not a boolean | The application does not start. |
+
+`docker-compose.yml` defaults the opt-in to `false`. Where the workspace is not
+composed, the capability endpoint says DISABLED and every other live route
+answers `503 LIVE_DISABLED`.
+
+**Every published port is loopback-only.** Postgres, the backend and nginx
+publish on `127.0.0.1` and `[::1]` only. Inside the compose network the
+services still reach each other by name, and uvicorn still binds `0.0.0.0`
+inside its container. Before Part 2B all three ports were published on every
+interface, so any machine on the LAN could reach an unauthenticated API. The
+IPv6 loopback binding is there so that `localhost` does not stall on a failed
+`::1` attempt first; on Windows that stall was 2 seconds per connection.
+
+**A browser boundary where the workspace is composed.** Every live route
+refuses a request whose `Host` is not a loopback name or the host of a
+configured CORS origin (`LIVE_HOST_REFUSED`, 403). This stops DNS rebinding.
+Every `POST`, `PUT`, `PATCH` and `DELETE` whose `Origin` is present and not a
+configured CORS origin is refused (`LIVE_ORIGIN_REFUSED`, 403). That is the
+guard that stops a cross-site form or a `text/plain` POST, which a browser
+sends without a CORS preflight. A request with no `Origin`, such as a
+script or a test client, is not a browser forgery and is allowed. The CORS
+policy itself is unchanged. **None of this is authentication.** Any process
+on the machine can drive the API.
+
+**Subscribers that fall behind are closed.** An overflowing subscriber gets
+one `RESYNC_REQUIRED` (`SUBSCRIBER_OVERFLOW`) and is then closed, so its SSE
+response ends and the client comes back from a snapshot. It is never fed a
+tail of notifications that skip what it missed. A reconnect whose catch-up
+would not fit in the queue gets `RESYNC_REQUIRED` (`CATCH_UP_TOO_LARGE`)
+followed by `STATE`, instead of a partial replay.
+
+**Creation cannot outlive shutdown.** `shutdown` marks the workspace closed,
+then takes the creation lock, so a creation in flight finishes and refuses
+(`LIVE_SHUTTING_DOWN`) before sessions are collected. A source that fails in
+an undescribed way is a typed `SOURCE_OPEN_FAILED` (503), logged by exception
+type only, never a 500 with a traceback.
+
+**The heartbeat interval is a setting.** `LIVE_HEARTBEAT_SECONDS` (0.5–300,
+default 15) lets a heartbeat be observed between SLOW-paced candles over real
+HTTP. A heartbeat still touches no market state.
+
+**The timeline can be paged in the browser.** Older entries are read on
+request, back to the server's retained window of 500. The client holds up to
+those 500.
+
 ## Cross-cutting decisions
 
 **Decimal at the data boundary, float inside the indicators.** Candle OHLCV

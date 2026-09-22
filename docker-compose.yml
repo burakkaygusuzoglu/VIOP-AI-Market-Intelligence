@@ -1,6 +1,13 @@
 # VIOP AI Market Intelligence - local development stack.
 # Services: frontend, backend, postgres. Nothing else is added until the
 # architecture actually requires it (master spec sections 101 and 106).
+#
+# Every published port is bound to loopback only - 127.0.0.1 and [::1], the
+# latter so `localhost` does not stall on an IPv6 attempt first. This stack has no
+# authentication: publishing on all interfaces would put every API - and the
+# Phase 13 live workspace, which holds a task and memory per session - on the
+# local network. Inside the compose network the services still reach each
+# other by name; only the host-side exposure is loopback.
 
 # An explicit project name is required: the directory name VIOP_AI_ would
 # otherwise derive the invalid image tag 'viop_ai_-backend'.
@@ -14,7 +21,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-viop}
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+      - '[::1]:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,10 +44,14 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-viop}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      # Phase 13. Off unless explicitly enabled, and ignored in production.
+      LIVE_SIMULATION_ENABLED: ${LIVE_SIMULATION_ENABLED:-false}
+      LIVE_HEARTBEAT_SECONDS: ${LIVE_HEARTBEAT_SECONDS:-15}
       # Unused in Phase 0; no AI adapter exists yet.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
-      - '8000:8000'
+      - '127.0.0.1:8000:8000'
+      - '[::1]:8000:8000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,7 +60,8 @@ services:
     build:
       context: ./frontend
     ports:
-      - '5173:80'
+      - '127.0.0.1:5173:80'
+      - '[::1]:5173:80'
     depends_on:
       - backend
 

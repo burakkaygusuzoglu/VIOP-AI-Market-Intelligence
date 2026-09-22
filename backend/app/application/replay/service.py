@@ -33,6 +33,7 @@ from app.application.analysis.orchestrator import (
     run_analysis,
 )
 from app.application.analysis.request import AnalysisRequest, TimeframeDataset
+from app.application.analysis.serialisation import candles_to_csv
 from app.application.paper.service import (
     CreatePaperPosition,
     PaperErrorKind,
@@ -604,7 +605,7 @@ class ReplayService:
                 ),
             )
         fresh = list(candles)
-        content = _to_csv(fresh)
+        content = candles_to_csv(fresh)
         paper = self._paper_for(boundary)
         touched: set[str] = set()
         for position_id in links:
@@ -661,7 +662,7 @@ class ReplayService:
             datasets.append(
                 TimeframeDataset(
                     timeframe=summary.timeframe,
-                    content=_to_csv(candles),
+                    content=candles_to_csv(candles),
                     source_name=f"replay {summary.timeframe.value}",
                 )
             )
@@ -883,32 +884,6 @@ def _not_found(session_id: str) -> ReplayServiceError:
     return ReplayServiceError(
         ReplayErrorKind.NOT_FOUND, "SESSION_NOT_FOUND", f"no replay session {session_id}"
     )
-
-
-def _to_csv(candles: Sequence[Candle]) -> str:
-    """Canonical CSV for a revealed prefix.
-
-    Amounts are written with ``format(value, "f")`` and read back as ``Decimal``,
-    so the round trip through the Phase 1 parser is exact. Serialising rather
-    than bypassing the parser is deliberate: it keeps replay on the same
-    validated path as every other analysis in the system.
-    """
-    lines = ["open_time,open,high,low,close,volume"]
-    for candle in candles:
-        volume = "" if candle.volume is None else format(candle.volume, "f")
-        lines.append(
-            ",".join(
-                (
-                    candle.open_time.isoformat(),
-                    format(candle.open, "f"),
-                    format(candle.high, "f"),
-                    format(candle.low, "f"),
-                    format(candle.close, "f"),
-                    volume,
-                )
-            )
-        )
-    return "\n".join(lines) + "\n"
 
 
 def _canonical(value: Decimal | None) -> str:

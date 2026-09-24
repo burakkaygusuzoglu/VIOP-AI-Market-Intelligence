@@ -89,7 +89,9 @@ async def truncate(database: Database) -> None:
     async with database.engine.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE backtest_position_events, backtest_positions, "
+                "TRUNCATE shadow_run_attempts, shadow_outcomes, "
+                "shadow_journal, shadow_runs, "
+                "backtest_position_events, backtest_positions, "
                 "backtest_decisions, backtest_runs, "
                 "replay_position_links, replay_sessions, replay_candles, "
                 "replay_datasets, paper_journal_annotations, paper_position_events, "

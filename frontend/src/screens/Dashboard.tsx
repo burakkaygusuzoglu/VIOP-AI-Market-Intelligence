@@ -50,6 +50,7 @@ export interface DashboardProps {
   readonly onReplay: () => void;
   readonly onBacktest: () => void;
   readonly onLive: () => void;
+  readonly onShadow: () => void;
 }
 
 export function Dashboard({
@@ -59,6 +60,7 @@ export function Dashboard({
   onReplay,
   onBacktest,
   onLive,
+  onShadow,
 }: DashboardProps) {
   return (
     <div className="dashboard-screen">
@@ -87,6 +89,9 @@ export function Dashboard({
         </button>
         <button type="button" className="dashboard-screen__secondary" onClick={onLive}>
           CANLI İZLEME (SİMÜLE GEÇMİŞ AKIŞ)
+        </button>
+        <button type="button" className="dashboard-screen__secondary" onClick={onShadow}>
+          GÖLGE MODU (YALNIZCA GÖZLEM)
         </button>
         <p className="dashboard-screen__intro">
           Kağıt işlemler yalnızca simülasyondur: gerçek emir oluşturulmaz veya gönderilmez.

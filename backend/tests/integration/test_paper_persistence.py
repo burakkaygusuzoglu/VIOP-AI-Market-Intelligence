@@ -21,6 +21,7 @@ from app.adapters.persistence import (  # noqa: F401  (registering these defines
     backtest_models,
     paper_models,
     replay_models,
+    shadow_models,
 )
 from app.adapters.persistence.base import Base
 from app.adapters.persistence.database import Database
@@ -84,6 +85,11 @@ class TestSchema:
         # hold no candles of their own - a run names the dataset it read. There
         # is no second financial ledger: the Phase 12 event table holds the same
         # Phase 9 events, kept apart from the ones a person decided to take.
+        # Phase 14 added two: a shadow run and its append-only journal. Neither
+        # holds a position, a fill or a ledger - a shadow run records what a
+        # policy decided and what it saw, and opens nothing. Part 2A added two
+        # more: published price developments (a level touched, never a fill,
+        # with no quantity or profit column) and creation attempt keys.
         assert names == {
             "alembic_version",
             "paper_positions",
@@ -97,6 +103,10 @@ class TestSchema:
             "backtest_decisions",
             "backtest_positions",
             "backtest_position_events",
+            "shadow_runs",
+            "shadow_journal",
+            "shadow_outcomes",
+            "shadow_run_attempts",
         }
 
     async def test_money_columns_are_exact_numeric(self, database: Database) -> None:

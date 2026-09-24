@@ -2386,6 +2386,302 @@ HTTP. A heartbeat still touches no market state.
 request, back to the server's retained window of 500. The client holds up to
 those 500.
 
+## Shadow observation and the decision journal (Phase 14, part 1)
+
+Shadow Mode watches a live stream and records what the existing rules decided,
+without opening anything. Master spec section 78 states it directly: the system
+analyses market data and "opens no paper or real position automatically". Part 1
+is the observation engine and its journal. Part 2A (outcomes, the API and the
+screen) is described in the next section.
+
+The defining property is that **it computes nothing of its own**. Every number
+in a shadow journal entry was produced by an engine that already existed:
+
+    market state, availability, continuity      Phase 13 LiveSession
+    indicator readings                          Phase 1, via the shared builder
+    the decision                                a registered Phase 12 policy
+    the sizing verdict                          Phase 3 size_for_product
+    regime · suitability · setup quality        Phase 8 run_analysis
+
+    domain/shadow          run · decision · eligibility · identity
+            │              pure; no clock read, no I/O, no arithmetic on money
+            ▼
+    application/shadow     ports (ShadowJournalStore) · ShadowRunner
+            │              orchestration only: it asks, it never answers
+            ▼
+    adapters/persistence   shadow_models.py · shadow_store.py (append-only)
+
+**Shadow is not paper trading.** Paper trading (Phase 9) simulates a position:
+it has a fill model, a ledger and a P&L. Shadow has none of those. It records
+that a policy *intended* an entry, at what level, with what stop and targets,
+and whether risk approved a quantity. An intent is not a fill, a refusal is not
+a trade, and `WAIT` is not a loss. No shadow run has ever created a paper
+position, a replay position or a backtest run, and a test counts the rows to
+prove it.
+
+**Two different trust levels, never blurred.** Observing a signal needs only
+confirmed candles. Calling a decision *financially executable* needs verified
+product facts and an independent risk approval, and this deployment has no
+verified futures metadata provider. So the financial half of a decision is a
+state, not a silence: `NOT_CONFIGURED` (no account or risk policy was given),
+`METADATA_UNAVAILABLE` (no verified contract provider, or it could not answer),
+`APPROVED`, `REFUSED`, or `UNDETERMINED`. A missing fact is never an approval,
+and an entry recorded with `METADATA_UNAVAILABLE` carries no approved quantity.
+`REFUSED` replaces the outcome outright: an intent cannot talk past the risk
+engine.
+
+**Evidence is frozen at the boundary, not at consumption.** The observer
+callback runs inside the stream and captures, synchronously, the boundary's
+connection state, provenance, per-timeframe availability and the *confirmed
+prefix* of every book — only candles whose coverage ended at or before that
+boundary. Evaluation then runs off that capture. A consumer that falls behind
+therefore decides exactly what it would have decided on time: lag moves when an
+entry is written, never what it says. This was a real defect first, caught by
+its own test: reading `session.snapshot()` at consumption time let a later
+disconnect mark an earlier boundary unavailable, and let a late candle reach
+back into a prefix that had already closed.
+
+**One evaluation per genuinely new confirmed boundary.** Not per subscriber,
+not per heartbeat, not on a duplicate, not on a forming update, not on a
+reconnect. A late candle behind the head creates no boundary — it is recorded
+as an operational fact (`LATE_FILL`) instead, and a duplicate that disagrees
+with a candle already held is recorded as `CONFLICTING_CORRECTION`. Neither
+rewrites the decision that was already published; a published entry is
+superseded by a new one, never edited.
+
+**The decision key is semantic, not random.** It is a digest of the run, the
+frozen configuration fingerprint (source, instrument, strategy id and version,
+parameters, driver, timeframes, risk policy, account), the boundary and a
+fingerprint of the exact policy inputs. Writing the same observation twice is
+therefore a no-op at the database level, not a second row that happens to have
+a different UUID. The identical run over identical observations produces an
+identical sequence of keys, outcomes and fingerprints; only the wall-clock
+audit fields differ.
+
+**Unavailable is a decision, not an absence.** When evidence is missing, stale,
+gapped or the stream is not both connected and fresh, the journal records
+`UNAVAILABLE` with the reasons, and the policy is never called. An empty
+journal is never filled by manufacturing a decision, and "no signal" is kept
+distinct from "could not see".
+
+**Only registered strategy versions run.** The runner reuses the Phase 12
+`require_supported_rules` table. A strategy name from a client never becomes a
+Python import, there is no `eval`, and an unknown id or version is refused
+before a run opens.
+
+**The journal is append-only in the database, not merely by convention.** A
+trigger refuses `UPDATE` and `DELETE` on `shadow_journal`, and an append is
+idempotent through `ON CONFLICT DO NOTHING` on `(run_id, decision_key)`. It is
+persisted rather than ephemeral because section 78 asks for the later outcome
+of a recorded signal, which is a question about history and must survive a
+restart. Phase 13's live market state stays ephemeral; what is durable here is
+the record of what was decided, not the market picture.
+
+**Bounded, and honest when a bound is reached.** Four concurrent runs, 5000
+observations per run, 512 pending records, 100 journal entries per page, and
+bounded reason text. A run that exceeds a bound ends with a stated reason and
+is never labelled complete. A consumer that cannot keep up ends the run rather
+than writing a journal with a hole in it.
+
+**Nothing new was written twice.** The strategy-context builder the Phase 12
+backtest runner used privately (`readings_series`, `readings_at`, `value_at`,
+`confirmed_higher`) moved to `application/strategy/` unchanged, so shadow and
+backtest prepare policy inputs through one code path. An import contract
+forbids that module from computing anything.
+
+## Shadow outcomes, API and research workspace (Phase 14, part 2A)
+
+Part 2A adds three things on top of the Part 1 journal: following what price
+did after a decision, a REST API over runs and their journals, and a research
+screen. Part 2B (real-browser end-to-end tests, the mutation sweep and the final
+security review) is not started.
+
+### "Later outcome" means market development, not a trade result
+
+Master spec section 78 asks a shadow record to carry the "later outcome" of a
+signal, "to evaluate system behavior under live conditions". Three different
+claims could be made, and only the first is:
+
+1. **subsequent observed market development** - price reached a level;
+2. *hypothetical execution result* - an order would have been filled there;
+3. *simulated financial P&L* - that fill made or lost money.
+
+The spec asks for the first. The second needs an execution model; the third
+needs a verified contract multiplier and tick value, which this deployment does
+not have. So `domain/shadow/outcome.py` reports price development and names it
+as such: `STOP_LEVEL_TOUCHED`, `TARGET_LEVEL_TOUCHED`,
+`BOTH_LEVELS_TOUCHED_SAME_BAR`, `NONE_REACHED`, `NOT_OBSERVED`. There is no
+`WIN`, `LOSS`, `FILLED` or profit anywhere - not in the domain, the table, the
+API schema or the screen - and a test for each layer checks the vocabulary.
+
+States are separate from events: `NOT_EVALUATED` (nothing proposed, nothing to
+follow), `PENDING` (window still open), `OBSERVED`, `UNAVAILABLE` (always with a
+reason) and `INVALIDATED`. The rules are versioned (`shadow-outcome/v1`) and
+every stored development names them.
+
+### Forward-only, three times over
+
+A decision at boundary `T` can only be judged by candles that **opened at or
+after `T`**. Closing after `T` is not enough: a candle that opened before `T`
+and closed after it straddles the decision, its high and low may have been made
+before it, and its range cannot be split - so none of it counts. Continuity is
+checked from `T` itself: if the interval starting at `T` is missing, nothing
+after it is continuous with the decision. (Part 2B corrected both: the rule was
+"coverage ends after `T`", and continuity was checked only between later
+candles.) The rule holds in three places:
+
+* **the domain** computes the eligible interval from the boundary itself -
+  a caller cannot pass the decision's own candle in;
+* **the runner** advances open follow-ups from each later boundary's *captured
+  prefix* (Part 1's synchronous capture), so following a decision can never see
+  further than observing one could. The full series is read once, at run end,
+  only to close windows that are still open;
+* **the database** refuses the gross violation: `outcomes_observe_only_what_came_after`
+  requires `observed_from > decision_boundary`, and a test inserts a violating
+  row with raw SQL. This is necessary but not sufficient - `observed_from` is a
+  coverage end, so the table alone cannot tell a straddling candle from an
+  adjacent one. The straddling rule is the domain's, pinned by tests and by
+  mutation probe P.
+
+### What is refused rather than guessed
+
+* **Same-bar ambiguity.** One candle reaching both the stop and a target is
+  recorded as `BOTH_LEVELS_TOUCHED_SAME_BAR` with `ambiguous = true`. OHLC does
+  not say which came first, and no order is invented.
+* **Gaps.** A skipped interval inside the window makes the development
+  `UNAVAILABLE` from that point. A level reached *before* the gap stands.
+* **Data running out.** A window that never closed is `UNAVAILABLE`, never
+  `NONE_REACHED` pretending the window completed.
+* **Corrections.** A conflicting correction contests a stored candle (the
+  stored one is not rewritten). Two dependencies are followed, and nothing is
+  touched for being near in time:
+  * a **decision** read the candle if it closed at or before the decision's
+    boundary - for the driver and every other timeframe the run subscribes to;
+  * a **development** read the candle if it is a driver candle inside that
+    development's observed window.
+
+  Every affected follow-up - open, or already published - gets an appended
+  `INVALIDATED` record naming the dependency and the candle. The decision and
+  any earlier development stay exactly as published. A correction of a
+  timeframe the run never subscribed to is not its concern. (Part 2B: before,
+  only driver corrections of decision evidence were followed; corrections of a
+  higher timeframe, and of any candle a development read, were ignored.)
+
+Only `ENTRY_INTENT` is followed. A refused signal proposed nothing to the
+market, and following it would read as a position that existed. An intent that
+could not be sized for lack of metadata *is* followed - price development is a
+fact about price - and its decision still says `METADATA_UNAVAILABLE`.
+
+### Persistence: a forward migration, append-only again
+
+`0008_shadow_outcomes` adds two tables. It is a new revision rather than an edit
+of `0007`, because `alembic current` showed `0007` already applied on the
+development database.
+
+* `shadow_outcomes` - append-only (a trigger refuses UPDATE and DELETE),
+  idempotent on `(run_id, outcome_key)`, prices as `NUMERIC(24, 8)`. It has no
+  quantity and no profit column. A development that was pending and later
+  resolved is a new row; the journal page shows the newest per decision, in one
+  query for the whole page.
+* `shadow_run_attempts` - one row per creation attempt key.
+
+### One stream, many readers
+
+A shadow run attaches to an existing `LiveWorkspace` session as a *reader*
+(`attach_reader` / `detach_reader`); it never opens a provider stream of its
+own. The run starts at the **next** confirmed boundary after creation: nothing
+the session already consumed is replayed into it, and a session that has ended
+refuses new runs (`LIVE_SESSION_ENDED`). An SSE subscriber and a run are
+different objects with different lifetimes, so a browser closing its stream
+ends nothing.
+
+### Lifecycle and restart
+
+`ShadowWorkspace` owns runs: create, read, cancel, shut down. Completeness is
+derived from the stored end reason on the server, never by a client:
+`COMPLETE` (the data ran out), `PARTIAL` (cancelled, bounded or shut down),
+`INTERRUPTED` (failed, or found observing after a restart). On startup,
+`recover_interrupted_runs` closes any run a dead process left `OBSERVING` as
+`INTERRUPTED`, with counts taken from its own journal and a final `RUN_ENDED`
+entry. It is never resumed - that would stitch two observations together across
+a gap nobody recorded - and no decision it missed is invented.
+
+### Creating a run exactly once
+
+Creation carries an attempt key. The run row and the key are written in **one
+transaction**: a losing request writes neither. Before anything else, a retry
+is recognised by the key and answered with the run it already made - even when
+every slot is taken. The same key with a different frozen configuration is a
+409. Tested with eight concurrent connections racing one key against real
+PostgreSQL: one run, seven `AttemptKeyHeldError`s, nothing left behind.
+
+Two defects were found and fixed on the way. The first attempt claimed the key
+before the run row existed, which the foreign key rejected (the in-memory
+journal could not see this; the PostgreSQL test did). And measurement showed a
+retry at capacity being refused with `SHADOW_CAPACITY`; the key is now
+consulted first.
+
+### The API
+
+    GET  /api/shadow/capability
+    POST /api/shadow/runs
+    GET  /api/shadow/runs                       offset, limit <= 100
+    GET  /api/shadow/runs/{run_id}
+    POST /api/shadow/runs/{run_id}/cancel
+    GET  /api/shadow/runs/{run_id}/journal      after, limit <= 100
+    GET  /api/shadow/runs/{run_id}/outcomes     after, limit <= 100
+
+Every request model forbids extra fields, so a decision, outcome, fill, profit,
+approval, metadata, provenance or status in a body is a 422. A strategy is a
+registry key mapped to an object this build ships - never an import. The
+router reuses Phase 13's `require_local_request` (Host and Origin checks) and
+is composed only where the live workspace is: production, or a missing opt-in,
+answers `SHADOW_DISABLED`. A journal page costs four SQL statements whatever
+its size. An import contract keeps the API away from anything that trades,
+values or narrates.
+
+### The research screen
+
+`screens/Shadow.tsx` - overview, decisions, evidence, later development and run
+history. It computes nothing financial: prices are shown as the strings that
+arrived, and a test reads the source for `parseFloat(`, `Number(`,
+`.reduce((` and profit vocabulary. Counts are counts of *answers*, labelled as
+such, and there is no win rate. Choosing a run takes a generation ticket and
+aborts the previous reads, so a late answer for run A cannot appear under run
+B. The screen holds at most 500 journal entries and says so when it stops. It
+has no path from a live SSE event into its state.
+
+## Phase 14, part 2B - what verification changed and proved
+
+Part 2B validated Phase 14 against the composed stack - Docker backend, real
+nginx, real PostgreSQL, the built frontend in headless Chrome 153 over CDP -
+and fixed what that exposed.
+
+**Defects fixed.** The straddling-candle and leading-gap rules and the
+correction dependencies above; shutdown not taking the creation lock (a
+creation in flight could start an observer after shutdown returned - the defect
+Phase 13 fixed for live sessions); a journal cursor beyond a 32-bit sequence
+reaching PostgreSQL and returning a false "journal unreachable" 503 (now a 422
+at the edge); run history not paging past its newest 25 runs; runs of the same
+rules being indistinguishable in history (Pro now shows the run id); and an
+unbounded `sqlalchemy>=2.0` that let a fresh image resolve SQLAlchemy 2.1 without
+`greenlet` - the backend could not start. The dependency is now
+`sqlalchemy[asyncio]>=2.0,<2.1`: the extra the code uses, on the line every test
+ran against.
+
+**Deployment.** Shadow is composed exactly where the live workspace is: only
+with `LIVE_SIMULATION_ENABLED=true` and `APP_ENV` development or test. Empty,
+misspelled or differently cased `APP_ENV`, and an unparseable opt-in, refuse to
+start. Every Shadow route shares the live router's Host and Origin checks. None
+of this is authentication, and none is claimed.
+
+**Mutation sweep A-AD.** 29 probes edited production code and were each caught
+by the intended test; one (a heartbeat triggering evaluation) is structurally
+inapplicable - a heartbeat never becomes a `StreamRecord`, and the transport
+that sends it is outside what Shadow may import. One probe first survived and
+exposed a missing test: a higher-timeframe candle delivered before the driver
+candles it spans; that test now exists.
+
 ## Cross-cutting decisions
 
 **Decimal at the data boundary, float inside the indicators.** Candle OHLCV

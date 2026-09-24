@@ -76,6 +76,7 @@ from app.application.replay.ports import (
     ReplayStoreUnavailableError,
     StoredDataset,
 )
+from app.application.strategy import confirmed_higher, readings_series
 from app.domain.backtest.fingerprint import (
     canonical_decimal,
     canonical_time,
@@ -107,8 +108,6 @@ from app.domain.backtest.run import (
 from app.domain.common.enums import Timeframe
 from app.domain.instrument import ProductPolicy
 from app.domain.market.candle import Candle
-from app.domain.market.quality import DataQualityEngine
-from app.domain.market.series import CandleSeries
 from app.domain.paper import SimulationPolicy
 from app.domain.paper.engine import (
     PaperRefusalError,
@@ -125,7 +124,6 @@ from app.domain.paper.model import (
 )
 from app.domain.replay import coverage_end
 from app.domain.risk.sizing import AccountState, RiskPolicy, SizingOutcome, size_for_product
-from app.domain.technical.engine import TechnicalSnapshot, compute_technicals
 
 _LOG = logging.getLogger(__name__)
 
@@ -477,9 +475,9 @@ class BacktestRunner:
                 f"a strategy may require at most {self._bounds.max_warm_up_bars} warm-up candles",
             )
 
-        driver_readings = _readings_series(driver)
+        driver_readings = readings_series(driver)
         higher_readings = {
-            timeframe: _readings_series(candles) for timeframe, candles in higher.items()
+            timeframe: readings_series(candles) for timeframe, candles in higher.items()
         }
 
         decisions: list[DecisionRecord] = []
@@ -511,7 +509,7 @@ class BacktestRunner:
                 bar=bar,
                 current=driver_readings[index],
                 previous=driver_readings[index - 1] if index else Readings(),
-                higher=_confirmed_higher(higher, higher_readings, boundary),
+                higher=confirmed_higher(higher, higher_readings, boundary),
                 bars_available=index + 1,
                 has_open_position=open_position_state is not None,
             )
@@ -1027,64 +1025,6 @@ def _boundaries_in(candles: Sequence[Candle], interval: RunInterval) -> list[tup
         if interval.start <= end <= interval.end:
             found.append((index, end))
     return found
-
-
-def _readings_series(candles: Sequence[Candle]) -> list[Readings]:
-    """Indicator readings per candle, or empty readings when unusable.
-
-    Computed once over the whole series. Phase 1 guarantees value ``i`` derives
-    from candles ``0..i`` only, and a unit test proves that guarantee holds for
-    every indicator read here - so indexing is identical to recomputing over
-    each prefix, at a fraction of the cost.
-    """
-    if not candles:
-        return []
-    assessment = DataQualityEngine().assess(CandleSeries.of(tuple(candles)))
-    series = assessment.series
-    if series is None:
-        return [Readings() for _ in candles]
-    snapshot = compute_technicals(series)
-    return [_readings_at(snapshot, index) for index in range(len(candles))]
-
-
-def _readings_at(snapshot: TechnicalSnapshot, index: int) -> Readings:
-    return Readings(
-        ema_fast=_value(snapshot.ema.get(9), index),
-        ema_slow=_value(snapshot.ema.get(20), index),
-        rsi=_value(snapshot.rsi, index),
-        atr=_value(snapshot.atr, index),
-        adx=_value(snapshot.adx, index),
-    )
-
-
-def _value(values: Sequence[float | None] | None, index: int) -> float | None:
-    if values is None or index < 0 or index >= len(values):
-        return None
-    return values[index]
-
-
-def _confirmed_higher(
-    candles: dict[Timeframe, tuple[Candle, ...]],
-    readings: dict[Timeframe, list[Readings]],
-    boundary: datetime,
-) -> dict[Timeframe, Readings]:
-    """Higher-timeframe readings, and only for candles that have closed.
-
-    A forming 1H bar is *absent*, not present with partial values: the last
-    index whose coverage ended at or before the boundary is the only one a
-    strategy may see.
-    """
-    confirmed: dict[Timeframe, Readings] = {}
-    for timeframe, series in candles.items():
-        last = -1
-        for index, candle in enumerate(series):
-            if coverage_end(candle) <= boundary:
-                last = index
-            else:
-                break
-        if last >= 0:
-            confirmed[timeframe] = readings[timeframe][last]
-    return confirmed
 
 
 def _decision_counts(decisions: Sequence[DecisionRecord]) -> dict[str, int]:

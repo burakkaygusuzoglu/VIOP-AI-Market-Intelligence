@@ -24,6 +24,7 @@ from app.adapters.persistence.health import SqlAlchemyDatabaseHealth
 from app.adapters.persistence.journal_store import SqlAlchemyJournalStore
 from app.adapters.persistence.paper_store import SqlAlchemyPaperStore
 from app.adapters.persistence.replay_store import SqlAlchemyReplayStore
+from app.adapters.persistence.shadow_store import SqlAlchemyShadowStore
 from app.adapters.products.futures import FuturesSnapshotCodec
 from app.adapters.system.clock import SystemClock
 from app.api.limits import RequestSizeLimitMiddleware, bounded_validation_response
@@ -48,8 +49,12 @@ from app.api.routes.performance import router as performance_router
 from app.api.routes.replay import router as replay_router
 from app.api.routes.screenshots import get_analyzer
 from app.api.routes.screenshots import router as screenshots_router
+from app.api.routes.shadow import router as shadow_router
 from app.application.live.workspace import LiveWorkspace
 from app.application.performance.service import PerformanceService
+from app.application.shadow.ports import ShadowStoreUnavailableError
+from app.application.shadow.service import ShadowRunner
+from app.application.shadow.workspace import ShadowWorkspace, recover_interrupted_runs
 from app.application.use_cases.get_liveness import GetLiveness
 from app.application.use_cases.get_system_health import GetSystemHealth
 from app.application.vision.decode import configure_image_safety
@@ -182,6 +187,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.live_request_policy = (
             None if live_workspace is None else local_request_policy(settings.cors_origins)
         )
+        # Phase 14. Shadow observes a live session and writes a persistent
+        # journal. It exists only where the live workspace does, because it has
+        # nothing to watch otherwise and because it inherits exactly the same
+        # local-only boundary - it opens no door of its own. No contract
+        # metadata provider is passed here either, so every proposed entry
+        # records METADATA_UNAVAILABLE rather than an approved quantity.
+        shadow_store = SqlAlchemyShadowStore(database)
+        shadow_workspace: ShadowWorkspace | None = (
+            ShadowWorkspace(
+                runner=ShadowRunner(
+                    store=shadow_store,
+                    clock=clock,
+                    parser=candle_parser,
+                    resolver=None,
+                    contracts=None,
+                ),
+                store=shadow_store,
+                live=live_workspace,
+                financial_metadata=False,
+            )
+            if live_workspace is not None
+            else None
+        )
+        application.state.shadow_workspace = shadow_workspace
+        if shadow_workspace is not None:
+            # A previous process may have stopped mid-observation. Its runs are
+            # closed as INTERRUPTED before anything new starts, never resumed.
+            # An unreachable journal must not stop the application starting.
+            try:
+                await recover_interrupted_runs(shadow_store, clock)
+            except ShadowStoreUnavailableError:
+                logger.warning("shadow restart reconciliation skipped: journal unreachable")
         application.state.live_heartbeat_seconds = settings.live_heartbeat_seconds
         application.state.get_liveness = GetLiveness(
             clock=clock,
@@ -208,6 +245,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             # Owned tasks first: every live session is cancelled and awaited
             # before the store it reads from goes away.
+            if shadow_workspace is not None:
+                await shadow_workspace.shutdown()
             if live_workspace is not None:
                 await live_workspace.shutdown()
             await database.dispose()
@@ -255,6 +294,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(replay_router, prefix=settings.api_prefix)
     application.include_router(backtest_router, prefix=settings.api_prefix)
     application.include_router(live_router, prefix=settings.api_prefix)
+    application.include_router(shadow_router, prefix=settings.api_prefix)
 
     # The composition root fills the provider seams. Overriding a dependency is
     # how the *application* injects its adapters here, not a test-only hook -

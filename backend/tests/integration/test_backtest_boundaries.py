@@ -326,7 +326,6 @@ class TestThePhaseBoundaryHoldsMechanically:
             "class OrderExecution",
             "BrokerPort",
             "OrderPort",
-            "shadow_mode",
         ],
     )
     def test_no_execution_capability_exists_anywhere_in_the_app(self, capability: str) -> None:
@@ -338,6 +337,13 @@ class TestThePhaseBoundaryHoldsMechanically:
         documentation of the prohibition, so what is banned here is the shape
         an actual capability would take: a function that places an order, a
         module that imports a broker, a port that abstracts one.
+
+        This list held `shadow_mode` while Phase 14 was a future phase. Phase 14
+        is now approved and shadow mode exists, so that marker moved with the
+        boundary rather than being deleted: what it was really guarding - that
+        nothing in the application can place an order - is guarded by the
+        entries above, and this test reads every module under `app/`, so the
+        shadow package is scanned by exactly the same bans.
         """
         offenders = [
             path.relative_to(APP_ROOT).as_posix()

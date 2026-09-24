@@ -19,6 +19,7 @@ from app.adapters.persistence import (
     journal_models,  # noqa: F401  (registers Phase 10 table)
     paper_models,  # noqa: F401  (registers Phase 9 tables)
     replay_models,  # noqa: F401  (registers Phase 11 tables)
+    shadow_models,  # noqa: F401  (registers Phase 14 tables)
 )
 from app.adapters.persistence.base import Base
 from app.core.config import get_settings

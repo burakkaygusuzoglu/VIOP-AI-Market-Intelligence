@@ -16,7 +16,11 @@ dependencies = [
     "uvicorn[standard]>=0.30",  # ASGI server
     "pydantic>=2.7",            # section 94: Pydantic v2 (API edge + settings)
     "pydantic-settings>=2.3",   # section 98: configuration via environment variables
-    "sqlalchemy>=2.0",          # section 94: ORM, persistence adapter only
+    # section 94: ORM, persistence adapter only. The asyncio extra is what the
+    # code uses (it brings greenlet); from 2.1 greenlet is no longer installed
+    # without it. Held to 2.0.x, the line every test ran against, so a fresh
+    # image cannot silently run a newer, untested SQLAlchemy (Phase 14 Part 2B).
+    "sqlalchemy[asyncio]>=2.0,<2.1",
     "alembic>=1.13",            # section 94: schema migrations
     "psycopg[binary]>=3.1",     # section 94: PostgreSQL driver
     # ---- Phase 6 (vision). Each of these has a stated reason; see below. ----
@@ -820,5 +824,153 @@ forbidden_modules = [
     "app.domain.paper",
     "app.domain.backtest",
     "app.adapters",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 14. The shadow domain holds identity, vocabulary, eligibility and
+# bounds - what an observation *is*. It must not reach a web framework, a
+# database, an adapter or the application layer, and it must not reach
+# anything that holds money, a position or a stream: an observation has no
+# route to a trade, and no way to compute one.
+name = "The shadow domain observes; it knows no transport, storage, money or positions"
+type = "forbidden"
+source_modules = ["app.domain.shadow"]
+forbidden_modules = [
+    "fastapi",
+    "sqlalchemy",
+    "app.adapters",
+    "app.api",
+    "app.application",
+    "app.domain.paper",
+    "app.domain.performance",
+    "app.domain.journal",
+    "app.domain.risk",
+    "app.domain.futures",
+    "app.domain.live",
+    "app.domain.synthesis",
+    "app.domain.vision",
+]
+
+[[tool.importlinter.contracts]]
+# Phase 14. Nothing underneath shadow may depend on it. An indicator, a fill,
+# a metric, a replay, a backtest or a live session that could ask whether it
+# was being shadowed would be free to behave differently under observation -
+# and the value of Shadow Mode is that it is the same engines, watched.
+name = "Nothing beneath shadow depends on it"
+type = "forbidden"
+source_modules = [
+    "app.domain.common",
+    "app.domain.instrument",
+    "app.domain.market",
+    "app.domain.risk",
+    "app.domain.futures",
+    "app.domain.paper",
+    "app.domain.performance",
+    "app.domain.journal",
+    "app.domain.technical",
+    "app.domain.structure",
+    "app.domain.analysis",
+    "app.domain.replay",
+    "app.domain.backtest",
+    "app.domain.live",
+    "app.domain.suitability",
+    "app.domain.synthesis",
+    "app.domain.vision",
+    "app.application.analysis",
+    "app.application.paper",
+    "app.application.performance",
+    "app.application.replay",
+    "app.application.backtest",
+    "app.application.live",
+    "app.application.strategy",
+]
+forbidden_modules = ["app.domain.shadow", "app.application.shadow"]
+
+[[tool.importlinter.contracts]]
+# Phase 14. Shadow orchestration watches the existing engines and writes down
+# what they decided. It may reach the live session, the shared strategy
+# context, the analysis orchestrator and the risk *sizing* engine - and
+# nothing that opens, fills, values or narrates a position. `app.domain.paper`
+# is forbidden so a shadow entry cannot become a paper position even by
+# mistake; the P&L primitives are forbidden so a signal can never be reported
+# with a profit it never had.
+name = "Shadow orchestration observes and records; it cannot trade or fabricate a result"
+type = "forbidden"
+source_modules = ["app.application.shadow"]
+forbidden_modules = [
+    "app.adapters",
+    "app.api",
+    "sqlalchemy",
+    "app.application.paper",
+    "app.application.replay",
+    "app.application.backtest",
+    "app.application.performance",
+    "app.application.synthesis",
+    "app.application.vision",
+    "app.domain.paper",
+    "app.domain.performance",
+    "app.domain.risk.pnl",
+    "app.domain.risk.whatif",
+    "app.domain.technical.momentum",
+    "app.domain.technical.smoothing",
+    "app.domain.technical.trend_strength",
+    "app.domain.technical.volatility",
+    "app.domain.technical.volume",
+    "app.domain.technical.vwap",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 14. The shared strategy-context builder prepares inputs; it decides
+# nothing and computes no indicator of its own. It exists so the backtest
+# runner and the shadow observer cannot drift into two ways of preparing the
+# same policy's inputs.
+name = "The shared strategy context builder prepares inputs and computes nothing"
+type = "forbidden"
+source_modules = ["app.application.strategy"]
+forbidden_modules = [
+    "app.adapters",
+    "app.api",
+    "sqlalchemy",
+    "app.application.paper",
+    "app.application.backtest",
+    "app.application.shadow",
+    "app.domain.paper",
+    "app.domain.risk",
+    "app.domain.technical.momentum",
+    "app.domain.technical.smoothing",
+    "app.domain.technical.trend_strength",
+    "app.domain.technical.volatility",
+    "app.domain.technical.volume",
+    "app.domain.technical.vwap",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 14 Part 2A. The shadow API names a session and a registered rule set
+# and reads a journal back. It must have no route to anything that trades,
+# fills, values or narrates: a shadow request is never one import away from a
+# position, a profit figure or a model. It may name the strategy registry,
+# because refusing an unregistered rule needs the table of registered ones.
+name = "The shadow API observes and reads back; it cannot trade, value or narrate"
+type = "forbidden"
+source_modules = [
+    "app.api.routes.shadow",
+    "app.api.schemas.shadow",
+    "app.api.schemas.shadow_projection",
+]
+forbidden_modules = [
+    "app.adapters",
+    "app.application.paper",
+    "app.application.backtest",
+    "app.application.replay",
+    "app.application.performance",
+    "app.application.synthesis",
+    "app.application.vision",
+    "app.domain.paper",
+    "app.domain.performance",
+    "app.domain.risk.pnl",
+    "app.domain.risk.whatif",
 ]
 allow_indirect_imports = true

@@ -456,6 +456,10 @@ class _Entry:
     end_origin: EndOrigin | None = None
     requested_end: EndOrigin | None = None
     subscribers: list[Subscriber] = field(default_factory=list)
+    readers: dict[str, Callable[[StreamRecord], None]] = field(default_factory=dict)
+    """Extra observers of this session's records, by name (Phase 14 attaches
+    shadow runs here). They read; none of them can affect the stream."""
+
     status: dict[Timeframe, tuple[str, str, str]] = field(default_factory=dict)
     connection: ConnectionState = ConnectionState.INITIALIZING
     analysis_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
@@ -509,6 +513,43 @@ class LiveWorkspace:
 
     def subscriber_count(self) -> int:
         return sum(len(entry.subscribers) for entry in self._entries.values())
+
+    def attach_reader(
+        self, session_id: str, name: str, reader: Callable[[StreamRecord], None]
+    ) -> None:
+        """Let another component read this session's records as they arrive.
+
+        Used by Phase 14 so a shadow run observes an *existing* session rather
+        than starting a second stream over the same data. Attaching does not
+        keep the session alive and cannot pace, pause or end it.
+        """
+        entry = self._entry(session_id)
+        if entry.lifecycle is Lifecycle.ENDED:
+            raise LiveWorkspaceError(
+                WorkspaceErrorKind.INVALID,
+                "LIVE_SESSION_ENDED",
+                "this session has ended and produces no further records",
+            )
+        entry.readers[name] = reader
+
+    def detach_reader(self, session_id: str, name: str) -> None:
+        entry = self._entries.get(session_id)
+        if entry is not None:
+            entry.readers.pop(name, None)
+
+    def session_object(self, session_id: str) -> LiveSession:
+        """The session itself, for a reader that needs its confirmed books.
+
+        Handed out read-only by convention: a :class:`LiveSession` exposes
+        state and snapshots, and the workspace remains the only caller of
+        ``run()``.
+        """
+        return self._entry(session_id).session
+
+    def session_ended(self, session_id: str) -> bool:
+        """Whether this session is over, for a reader deciding to stop."""
+        entry = self._entries.get(session_id)
+        return entry is None or entry.lifecycle is Lifecycle.ENDED
 
     async def sources(self, *, offset: int, limit: int) -> tuple[tuple[SourceSummary, ...], int]:
         try:
@@ -931,7 +972,31 @@ class LiveWorkspace:
                 backfill=record.backfill,
             ),
         )
+        self._notify_readers(entry, record)
         self._after_change(entry)
+
+    def _notify_readers(self, entry: _Entry, record: StreamRecord) -> None:
+        """Give the record to every attached reader.
+
+        One provider stream, many readers: a shadow run attaches here rather
+        than opening a second stream over the same dataset, so two observers
+        of one session cannot drift apart. A reader that raises is dropped
+        from the fan-out and logged by type - it is a reader, and the market
+        state it was reading is still correct.
+        """
+        for name, reader in list(entry.readers.items()):
+            try:
+                reader(record)
+            except Exception as error:  # noqa: BLE001 - reported safely, below
+                entry.readers.pop(name, None)
+                _LOG.error(
+                    "live session reader failed and was detached",
+                    extra={
+                        "session_id": entry.session_id,
+                        "reader": name,
+                        "error_type": type(error).__name__,
+                    },
+                )
 
     def _after_change(self, entry: _Entry) -> None:
         state = entry.session.state()

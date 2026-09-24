@@ -13,6 +13,7 @@ import { PerformanceScreen } from './screens/Performance';
 import { BacktestScreen } from './screens/Backtest';
 import { ReplayScreen } from './screens/Replay';
 import { LiveScreen } from './screens/Live';
+import { ShadowScreen } from './screens/Shadow';
 import { useTranslations } from './i18n';
 
 /**
@@ -48,7 +49,15 @@ import { useTranslations } from './i18n';
  */
 
 type Screen =
-  'dashboard' | 'analyze' | 'workspace' | 'paper' | 'performance' | 'replay' | 'backtest' | 'live';
+  | 'dashboard'
+  | 'analyze'
+  | 'workspace'
+  | 'paper'
+  | 'performance'
+  | 'replay'
+  | 'backtest'
+  | 'live'
+  | 'shadow';
 
 export function App() {
   const t = useTranslations();
@@ -132,6 +141,7 @@ export function App() {
           onReplay={() => setScreen('replay')}
           onBacktest={() => setScreen('backtest')}
           onLive={() => setScreen('live')}
+          onShadow={() => setScreen('shadow')}
         />
       )}
 
@@ -142,6 +152,8 @@ export function App() {
       {screen === 'backtest' && <BacktestScreen mode={mode} />}
 
       {screen === 'live' && <LiveScreen mode={mode} onBack={() => setScreen('dashboard')} />}
+
+      {screen === 'shadow' && <ShadowScreen mode={mode} onBack={() => setScreen('dashboard')} />}
 
       {screen === 'performance' && (
         <PerformanceScreen mode={mode} onBack={() => setScreen('dashboard')} />

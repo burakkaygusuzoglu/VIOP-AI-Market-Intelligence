@@ -1,0 +1,102 @@
+/*
+ * Shadow research workspace (Phase 14 Part 2A).
+ *
+ * Built on the Live workspace's layout, banner, chips and tabs so the two
+ * screens read as one family. Nothing here carries meaning by colour alone:
+ * every flag is also written out in text.
+ */
+
+.shadow-guide,
+.shadow-history,
+.shadow-create {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  padding: var(--space-3) var(--space-4);
+}
+
+.shadow-guide h3,
+.shadow-history h3,
+.shadow-create h3 {
+  margin: 0;
+}
+
+.shadow-guide ul {
+  margin: 0;
+  padding-left: var(--space-4);
+  max-width: 75ch;
+}
+
+.shadow-history__list,
+.shadow-journal {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.shadow-journal li {
+  overflow-wrap: anywhere;
+}
+
+.shadow-journal__operational {
+  color: var(--color-text-muted);
+}
+
+.shadow-journal__when {
+  font-variant-numeric: tabular-nums;
+}
+
+.shadow-create select,
+.shadow-create button {
+  max-width: 100%;
+}
+
+.shadow-create__check {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.shadow-muted {
+  color: var(--color-text-muted);
+}
+
+.shadow-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.shadow-flag {
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+}
+
+.shadow-table {
+  border-collapse: collapse;
+  max-width: 100%;
+}
+
+.shadow-table caption {
+  text-align: left;
+  font-weight: var(--weight-bold);
+  padding-bottom: var(--space-1);
+}
+
+.shadow-table th,
+.shadow-table td {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-1) var(--space-3) var(--space-1) 0;
+  text-align: left;
+}
+
+.shadow-screen button:focus-visible,
+.shadow-screen select:focus-visible,
+.shadow-screen input:focus-visible {
+  outline: 2px solid var(--color-focus, currentColor);
+  outline-offset: 2px;
+}

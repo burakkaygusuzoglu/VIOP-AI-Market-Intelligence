@@ -21,8 +21,14 @@ is no third path in which a malformed event becomes a candle.
 
 There is no provenance field on a raw event, so an event cannot promote itself
 to exchange data. Provenance is a property of the provider object that produced
-the stream, and the only value this build has is the truthful one for the
-mock: simulated historical data played through a streaming interface.
+the stream.
+
+Phase 15 Part 1 made the real-provider provenances *expressible* - live,
+delayed and provider-historical exchange data, and user-supplied data of unknown
+standing - without making any of them *attainable*: a provider declaring one
+that :attr:`StreamProvenance.requires_grant` is refused unless an authoritative
+licence grant is presented for it (see ``app.domain.sourcing``). No such grant
+exists in this build, so every stream it composes is still simulated history.
 """
 
 from __future__ import annotations
@@ -52,15 +58,45 @@ __all__ = [
 class StreamProvenance(StrEnum):
     """Where a stream's market data came from.
 
-    One member, deliberately. A licensed provider adds its own value in Phase
-    15, once there is one; until then any other label would be a claim this
-    build cannot back. In particular there is no ``EXCHANGE_VERIFIED`` and no
-    ``LIVE_EXCHANGE_FEED``.
+    Phase 13 shipped one member on purpose, so no label could claim more than
+    the build could back. Phase 15 Part 1 adds the members a licensed provider
+    would need - but a member is a word, not a claim: carrying any member that
+    :attr:`requires_grant` needs an authoritative licence grant, checked when a
+    session is built. There is still no ``EXCHANGE_VERIFIED``: a feed being
+    real says where prices came from, not that anything about them is verified.
     """
 
     SIMULATED_HISTORICAL_STREAM = "SIMULATED_HISTORICAL_STREAM"
     """Historical candles replayed through a streaming interface. Not a quote
     arriving from any exchange now, whatever the receive times say."""
+
+    REAL_EXCHANGE_LIVE = "REAL_EXCHANGE_LIVE"
+    """A licensed provider's real-time exchange feed. Requires a grant."""
+
+    REAL_EXCHANGE_DELAYED = "REAL_EXCHANGE_DELAYED"
+    """A licensed provider's exchange feed published after a stated delay.
+    Requires a grant; never shown as current."""
+
+    PROVIDER_HISTORICAL = "PROVIDER_HISTORICAL"
+    """Past exchange data served by a licensed provider. Requires a grant."""
+
+    UNVERIFIED_OR_USER_SUPPLIED = "UNVERIFIED_OR_USER_SUPPLIED"
+    """Data whose origin nobody vouches for - an upload, an unknown source. It
+    needs no grant because it claims nothing, and it is never current."""
+
+    @property
+    def requires_grant(self) -> bool:
+        """Whether carrying this label claims a licensed exchange source."""
+        return self in _GRANTED
+
+
+_GRANTED = frozenset(
+    {
+        StreamProvenance.REAL_EXCHANGE_LIVE,
+        StreamProvenance.REAL_EXCHANGE_DELAYED,
+        StreamProvenance.PROVIDER_HISTORICAL,
+    }
+)
 
 
 @unique
@@ -78,9 +114,21 @@ class MarketCurrency(StrEnum):
     HISTORICAL = "HISTORICAL"
     """Past market data. However recently it arrived, not a current quote."""
 
+    DELAYED = "DELAYED"
+    """Real market data published after a stated delay. Recent, not current."""
+
+    CURRENT = "CURRENT"
+    """The market now, from a licensed real-time feed. Only a granted
+    ``REAL_EXCHANGE_LIVE`` stream can carry it."""
+
 
 _CURRENCY: dict[StreamProvenance, MarketCurrency] = {
     StreamProvenance.SIMULATED_HISTORICAL_STREAM: MarketCurrency.HISTORICAL,
+    StreamProvenance.REAL_EXCHANGE_LIVE: MarketCurrency.CURRENT,
+    StreamProvenance.REAL_EXCHANGE_DELAYED: MarketCurrency.DELAYED,
+    StreamProvenance.PROVIDER_HISTORICAL: MarketCurrency.HISTORICAL,
+    # Unknown origin is never presented as the market now.
+    StreamProvenance.UNVERIFIED_OR_USER_SUPPLIED: MarketCurrency.HISTORICAL,
 }
 
 
@@ -137,6 +185,13 @@ class RawCandleEvent:
     candle: numbers are evidence of lost candles only where they agree with
     the candle times. Contiguous numbers never prove a session break."""
 
+    published_at: object = None
+    """When the provider says it published this message (Phase 15 Part 2A).
+
+    Optional, and never market time: nothing orders, confirms or ages a
+    candle by it. It is kept so a delayed feed's stated delay can be audited
+    against what actually arrived. Validated like every other timestamp."""
+
 
 @unique
 class SignalKind(StrEnum):
@@ -166,6 +221,9 @@ class Observation:
     event_time: datetime
     received_at: datetime
     sequence: int | None
+    published_at: datetime | None = None
+    """The provider's stated publication time, validated; ``None`` when the
+    provider gives none. Audit only - excluded from :meth:`same_values`."""
 
     @property
     def state(self) -> CandleState:

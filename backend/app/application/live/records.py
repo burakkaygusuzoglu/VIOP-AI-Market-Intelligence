@@ -56,5 +56,9 @@ class StreamRecord:
 
     closed: bool | None = None
     sequence: int | None = None
+    published_at: datetime | None = None
+    """Provider clock: its stated publication time, validated. Audit only -
+    never market time, never receive time (Phase 15 Part 2A)."""
+
     backfill: bool = False
     """Arrived through a backfill request after a reconnect, not the stream."""

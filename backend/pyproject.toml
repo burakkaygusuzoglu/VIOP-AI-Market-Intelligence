@@ -974,3 +974,165 @@ forbidden_modules = [
     "app.domain.risk.whatif",
 ]
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 15 Part 1. The provider foundation - capabilities, licence grants,
+# metadata assessment, calendar answers, provider bounds - is domain logic and
+# names no vendor. It reaches no framework, no database, no network library and
+# no layer above the domain, so no provider's protocol can shape what counts as
+# trusted.
+name = "The sourcing domain is vendor-neutral and reaches nothing outside the domain"
+type = "forbidden"
+source_modules = ["app.domain.sourcing"]
+forbidden_modules = [
+    "app.application",
+    "app.adapters",
+    "app.api",
+    "fastapi",
+    "sqlalchemy",
+    "pydantic",
+    "httpx",
+    "websockets",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 15 Part 1. A provider's protocol is spoken only by an adapter. The
+# application's sourcing layer turns a vendor-neutral candle into a Phase 13 raw
+# event and gates contract metadata; it opens no connection itself, and it
+# cannot reach paper trading or anything that values a position.
+name = "Provider orchestration speaks no network protocol and cannot trade"
+type = "forbidden"
+source_modules = ["app.application.sourcing"]
+forbidden_modules = [
+    "app.adapters",
+    "app.api",
+    "httpx",
+    "websockets",
+    "sqlalchemy",
+    "app.application.paper",
+    "app.domain.paper",
+    "app.domain.risk.pnl",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 15 Part 2A. Open interest, news, breadth, calendars and contract-fact
+# review are records and rules about records. They cannot reach anything that
+# trades, sizes, values a position, approves risk or runs a strategy - so an
+# article, a breadth figure or an approved fact cannot open a Paper position or
+# move a risk decision by itself.
+name = "External intelligence reaches no trading, risk or strategy code"
+type = "forbidden"
+source_modules = [
+    "app.domain.sourcing",
+    "app.application.sourcing",
+    "app.application.ports.intelligence",
+]
+forbidden_modules = [
+    "app.domain.paper",
+    "app.domain.risk",
+    "app.domain.shadow",
+    "app.domain.backtest",
+    "app.domain.synthesis",
+    "app.application.paper",
+    "app.application.strategy",
+    "app.application.shadow",
+    "app.application.backtest",
+    "app.application.synthesis",
+    "app.application.use_cases",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 15 Part 2A. The intelligence contracts are not wired into any decision:
+# no source is licensed, and an incomplete source must not steer a strategy,
+# a replay, a backtest, shadow mode, risk or Paper. Wiring one in is a reviewed
+# change that removes a line here, not a side effect.
+name = "No decision path reads external intelligence yet"
+type = "forbidden"
+source_modules = [
+    "app.domain.live",
+    "app.domain.replay",
+    "app.domain.backtest",
+    "app.domain.shadow",
+    "app.domain.risk",
+    "app.domain.paper",
+    "app.domain.structure",
+    "app.domain.technical",
+    "app.domain.analysis",
+    "app.domain.synthesis",
+    "app.application.live",
+    "app.application.replay",
+    "app.application.backtest",
+    "app.application.shadow",
+    "app.application.paper",
+    "app.application.strategy",
+    "app.application.analysis",
+    "app.application.synthesis",
+    "app.application.use_cases",
+]
+forbidden_modules = [
+    "app.domain.sourcing.calendar",
+    "app.domain.sourcing.facts",
+    "app.domain.sourcing.review",
+    "app.domain.sourcing.open_interest",
+    "app.domain.sourcing.news",
+    "app.domain.sourcing.breadth",
+    "app.application.sourcing.intelligence",
+    "app.application.sourcing.fact_review",
+    "app.application.sourcing.source_status",
+    "app.application.ports.intelligence",
+    "app.application.ports.fact_verification",
+    "app.application.ports.session_calendar",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 15 Part 2B. The source API reads status and review history. It has no
+# route to the operator command that writes the journal, to the write service,
+# or to anything that trades, sizes or values: a source request is never one
+# import away from an approval, a position or an order.
+name = "The source API reads status; it cannot write reviews, trade or value"
+type = "forbidden"
+source_modules = [
+    "app.api.routes.sources",
+    "app.api.schemas.sources",
+    "app.api.schemas.sources_projection",
+]
+forbidden_modules = [
+    "app.operator",
+    "app.adapters",
+    "app.application.sourcing.fact_review",
+    "app.application.paper",
+    "app.application.backtest",
+    "app.application.shadow",
+    "app.application.strategy",
+    "app.domain.paper",
+    "app.domain.risk",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Phase 15 Part 2B. Only the local operator command writes the verification
+# journal, and nothing imports it: not the HTTP application, not a route, not
+# any service. It reaches no trading code either.
+name = "Nothing imports the operator review command"
+type = "forbidden"
+source_modules = ["app.main", "app.api", "app.application", "app.domain", "app.adapters"]
+forbidden_modules = ["app.operator"]
+
+[[tool.importlinter.contracts]]
+name = "The operator review command reaches no trading, risk or strategy code"
+type = "forbidden"
+source_modules = ["app.operator"]
+forbidden_modules = [
+    "app.application.paper",
+    "app.application.backtest",
+    "app.application.shadow",
+    "app.application.strategy",
+    "app.domain.paper",
+    "app.domain.risk",
+    "app.api",
+]
+allow_indirect_imports = true

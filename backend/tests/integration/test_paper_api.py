@@ -29,14 +29,24 @@ from app.main import create_app
 from tests.factories_futures import unverified
 from tests.factories_paper import paper_contract
 from tests.integration.paper_support import (
+    DECISION,
     ENTRY,
     STOP_ON_REST,
     TARGET_ONE,
+    FixedClock,
     bars_csv,
     truncate,
 )
 
 pytestmark = pytest.mark.integration
+
+SERVER_NOW = FixedClock().now()
+"""The injected server clock for time-sensitive refusals. Deterministic: the
+Phase 9 test once put a "future" bar a fixed 5000 hours after DECISION, which
+the real calendar overtook on 2026-09-26."""
+
+NOT_CLOSED = int((SERVER_NOW - DECISION).total_seconds() // 3600) + 24
+"""Hours after DECISION of a bar that opens a day after SERVER_NOW."""
 
 
 def create_body(**changes: Any) -> dict[str, Any]:
@@ -281,13 +291,14 @@ class TestRefusalsOverHttp:
         ("rows", "code"),
         [
             ([(-1, "100", "101", "99.50", "100.50")], "OBSERVATION_BEFORE_DECISION"),
-            ([(5000, "100", "101", "99.50", "100.50")], "OBSERVATION_NOT_CLOSED"),
+            ([(NOT_CLOSED, "100", "101", "99.50", "100.50")], "OBSERVATION_NOT_CLOSED"),
         ],
         ids=["stale", "not-yet-closed"],
     )
     def test_bars_outside_the_allowed_time_are_refused(
         self, api: TestClient, rows: list[tuple[int, str, str, str, str]], code: str
     ) -> None:
+        api.app.state.clock = FixedClock()  # type: ignore[attr-defined]
         position_id = api.post(
             "/api/paper/positions", json=create_body(), headers=headers()
         ).json()["id"]

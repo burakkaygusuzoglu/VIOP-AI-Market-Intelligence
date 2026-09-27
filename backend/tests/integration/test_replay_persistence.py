@@ -23,6 +23,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.adapters.persistence import (  # noqa: F401  (registers the tables)
     backtest_models,
+    fact_models,
     replay_models,
     shadow_models,
 )

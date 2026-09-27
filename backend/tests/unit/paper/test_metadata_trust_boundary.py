@@ -149,6 +149,11 @@ class TestProductionCodeCannotReachTheTestSuite:
         allowed = {
             "domain/common/verification.py",  # defines the vocabulary
             "domain/analysis/evidence.py",  # reads a status, never assigns one
+            # Phase 15 Part 2A: the operator review boundary. It assigns the
+            # status only to a fact a named reviewer checked against a cited
+            # exchange or licensed-provider document, never to a file import;
+            # see tests/unit/sourcing/test_contract_facts.py.
+            "domain/sourcing/review.py",
         }
         offenders = []
         for path in PRODUCTION_FILES:

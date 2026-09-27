@@ -2682,6 +2682,357 @@ that sends it is outside what Shadow may import. One probe first survived and
 exposed a missing test: a higher-timeframe candle delivered before the driver
 candles it spans; that test now exists.
 
+## External data providers - the foundation (Phase 15, part 1)
+
+Master spec Phase 15 asks to *evaluate legitimate providers* for live market
+data, contract metadata, open interest, news and market breadth, to integrate
+them through adapters, and to couple no domain logic to one vendor. Part 1
+builds the vendor-neutral boundary a licensed provider will plug into. It
+connects no real provider, because none is accessible: Borsa İstanbul
+disseminates real-time and delayed data only through licensed data vendors
+under a data distribution agreement, and this project holds no licence and no
+credentials. Nothing below claims otherwise.
+
+    domain/sourcing        capability (categories, delivery, licence grants,
+            │              authorize_provenance) · metadata (multi-source
+            │              assessment) · calendar (answers) · limits (bounds,
+            │              retry policy)
+            ▼
+    application/sourcing   VerifiedMetadataSources (a ContractMetadataProvider)
+            │              · VendorCandle -> RawCandleEvent
+            ▼
+    adapters/sourcing      UnavailableSessionCalendar - the only calendar
+
+**A label is expressible; a claim must be granted.** `StreamProvenance` gained
+`REAL_EXCHANGE_LIVE`, `REAL_EXCHANGE_DELAYED`, `PROVIDER_HISTORICAL` and
+`UNVERIFIED_OR_USER_SUPPLIED`, and `MarketCurrency` gained `DELAYED` and
+`CURRENT`. The three real-exchange labels `requires_grant`: a `LiveSession`
+refuses to be built over a provider declaring one unless a `LicenceGrant` names
+that provider, covers market data, matches the delivery the label implies,
+rests on a sourced, dated `VERIFIED_CURRENT_FACT`, and has not lapsed. A
+refusal is typed and never falls back to a weaker label. Only a granted
+`REAL_EXCHANGE_LIVE` stream is `CURRENT`; delayed stays `DELAYED`; unknown
+origin is `HISTORICAL`. No module in the application constructs or passes a
+grant, and the live API still serializes only `SIMULATED_HISTORICAL_STREAM` /
+`HISTORICAL` - anything else is refused at the edge rather than mislabelled.
+Phase 13's "one member" test moved with this boundary: it now checks that every
+provider the build ships returns the simulated label.
+
+**Categories are separate capabilities.** Market data, contract metadata, open
+interest, news, market breadth and session calendars are each granted
+separately. A price feed being connected establishes nothing about a
+multiplier.
+
+**Metadata among several sources.** `assess_contract_metadata` applies master
+spec section 118 once: a record is `USABLE` only if it is for the requested
+instrument, its multiplier and tick size are sourced, dated verified facts, it
+is not expired, and its verification is younger than the allowed age. When
+authoritative sources disagree, the more recently verified one is chosen and
+the disagreement is carried with the answer; when neither is more recent,
+nothing is chosen (`CONFLICTING`). *(Corrected in part 2A, below: verification
+time is not applicability, so a disagreement between plain records is now
+refused, and resolution moved to dated, referenced source records.)*
+`VerifiedMetadataSources` wraps any number of
+named `ContractMetadataProvider`s behind the same port, so risk, paper trading,
+backtesting and shadow keep their existing boundary and see `None` - and
+therefore `METADATA_UNAVAILABLE` - for anything unusable. A failing source is
+skipped and logged by exception type only.
+
+**No calendar is invented.** Session hours, evening sessions, holidays and
+special sessions are section 118 facts that change by announcement. The only
+`SessionCalendarProvider` composed answers `UNAVAILABLE` for every moment, and
+a session answer cannot even be constructed without a verified, dated calendar
+source.
+
+**External candles skip nothing.** An adapter reduces a vendor message to a
+`VendorCandle`; `to_raw_event` turns it into the Phase 13 raw event, which goes
+through the same validation and `CandleBook` as the simulation. Exact decimal
+strings become `Decimal`; floats are left for validation to refuse. The
+provider's own publication time stays behind - a raw event has no field for it
+- so it can be neither market time nor receive time. *(Part 2A keeps it as an
+optional, validated audit field instead - see below - still never market or
+receive time.)* Forming candles, gaps,
+duplicates, conflicting corrections, sequence mismatches and disconnects behave
+exactly as they do for the simulation (tests drive a real `LiveSession`).
+
+**Bounds and retries.** `ProviderLimits` bounds connections, subscriptions,
+queued events, backfill, historical range, metadata cache and shutdown time.
+`RetryPolicy` backs off exponentially to a cap for transient failures and stops
+at once on rejected credentials, a missing licence or an invalid request.
+
+**Configuration.** `MARKET_DATA_PROVIDER` accepts only `none`; an unknown name
+refuses to start. `MARKET_DATA_PROVIDER_TOKEN` is a `SecretStr`, redacted from
+every log line, and setting it while the provider is `none` refuses to start.
+
+## External intelligence and verified facts (Phase 15, part 2A)
+
+Part 2A audits three Part 1 trust foundations and defines the contracts for
+the remaining Phase 15 categories - verified contract facts, session
+calendars, open interest, news and market breadth. It connects no provider:
+every port below is an interface with no production implementation, composed
+nowhere, and no decision path may read it yet (an import contract says so).
+
+    domain/sourcing        capability (+ CapabilityStatus, category_status) ·
+            │              facts (ContractSourceRecord, assess_fact_records) ·
+            │              review (operator review boundary) · calendar
+            │              (+ CalendarDay, answer_from) · open_interest · news ·
+            │              breadth · limits (+ intelligence bounds)
+            ▼
+    application/ports      intelligence (ContractFactSource, CalendarSource,
+            │              OpenInterestSource, NewsSource, BreadthSource,
+            │              ContractReviewLog)
+            ▼
+    application/sourcing   capabilities (matrix) · fact_review (append-only
+                           workflow) · intelligence (readers, bounded and
+                           sanitized; VerifiedContractFacts;
+                           RecordedSessionCalendar)
+
+**Six stages of trust, kept apart.** A provider declaration, verified
+entitlement evidence (a grant's `evidence`), a configured adapter, an
+authenticated connection, licensed market-data access and financial metadata
+authority are different things. `category_status` walks them in order per
+data category - `NOT_CONFIGURED`, `NOT_LICENSED`, `UNAVAILABLE`, `STALE`,
+`AVAILABLE` - so a configured but disconnected provider is never "available"
+and a simulation is licensed for nothing real. A `LicenceGrant` is a claim
+record that any code (and any test) can construct; what keeps a constructed
+grant out of production is composition: no application module builds or
+passes one, settings admit only `none`, the live API's request models forbid
+unknown fields, and the API serializes only simulated history. No grant, not
+even one for `CONTRACT_METADATA`, makes a contract fact authoritative.
+
+**Facts are chosen by applicable period, not by who checked last.** The Part 1
+assessment preferred the most recently *verified* record, so a value checked
+yesterday from a superseded specification could defeat the specification in
+force. `ContractSourceRecord` binds a contract's facts to their document: the
+source authority (`EXCHANGE_OFFICIAL`, `LICENSED_PROVIDER`; `SECONDARY` and
+`UNKNOWN` are never authoritative), a reference, the effective period, the
+verification time, the reviewer and any record it corrects.
+`assess_fact_records(requested, records, applies_at, now, max_age)` refuses
+another contract's record, sets aside corrected records, keeps only records
+whose period contains `applies_at`, marks verifications older than `max_age`
+stale, and then prefers the exchange over a provider and the later effective
+period over the earlier. A provider claiming a newer period than a disagreeing
+exchange record, or two same-rank records for the same period that disagree,
+is refused. Resolved disagreements and superseded records travel with the
+verdict. Plain `FuturesContract` sources (`assess_contract_metadata`) state no
+period, so a disagreement between them is now refused rather than resolved.
+`VerifiedContractFacts` exposes this behind the existing
+`ContractMetadataProvider` port and answers historical questions for the
+period asked about.
+
+**The review boundary.** Contract specifications are official pages and PDFs,
+so the realistic route to a verified fact is a person reading the document.
+`review(submission, decision)` is the only production code that assigns
+`VERIFIED_CURRENT_FACT` to a contract fact (the Phase 8 trust-boundary guard
+names it explicitly). It refuses a file import (a CSV is a transcription, not
+a document), a missing reference, a reviewer who did not attest to checking
+the document, a secondary or unknown publisher - however official the URL
+looks - a missing effective date, a missing, non-positive or mistyped value,
+and a decision that predates its submission. `record_from_approved` builds a
+record only from facts one document states for one period.
+`FactReviewWorkflow` appends every submission and decision - including a
+refused approval - to a `ContractReviewLog` before returning, and decides a
+submission once. *(Part 2B replaced the in-memory log with a durable
+PostgreSQL journal and `FactVerificationService`; see below.)*
+
+**Calendars are per date, never per rule.** A `CalendarDay` states venue,
+session category, date, timezone name and UTC offset, the kind of day
+(regular, special session, holiday, early close), its intervals, its verified
+source and the date that source took effect. `answer_from` returns
+`UNAVAILABLE` for a date with no record, an unverified or not-yet-effective
+record, or disagreeing records; a session break exists only because a record
+lists the intervals around it. `RecordedSessionCalendar` also needs a verified
+session category per symbol and never derives one from a symbol's spelling.
+The offset is part of the record, so no host timezone database is consulted.
+The live domain reads no calendar: a missing candle is still a gap.
+
+**Open interest.** An `OpenInterestObservation` carries instrument, scope
+(`CONTRACT` or `UNDERLYING_AGGREGATE` - never interchangeable), a whole,
+non-negative count of contracts, measurement, publication and receipt times,
+the reporting interval, a verified source and a revision number. A decision at
+T sees an observation only if `available_at` - publication (or, without one,
+receipt) - is at or before T, and for the latest measurement the highest
+revision available by then. Nothing reads a candle or a volume.
+
+**News.** A `NewsArticle` carries identity, publisher, headline, https URL,
+publication and availability times, provider- or operator-tagged associations,
+status (`PUBLISHED`, `CORRECTED`, `RETRACTED`), revision, usage rights and a
+verified source. It has no impact, sentiment or direction field.
+`news_visible_at` shows each article in its latest revision available at the
+decision time, keeps retractions visible and marked, drops unlicensed
+articles, and excludes fixture or mock articles unless a test asks for them.
+
+**Breadth needs a denominator.** A `Universe` is a verified, published list
+(index constituents or an exchange listing) with a stated methodology; a
+watchlist is refused. `breadth_at` refuses observations from outside the
+universe, contradictory observations, and coverage below the bound; between
+the bound and full coverage the answer is `PARTIAL`, with shares over the
+observed constituents and the missing ones named.
+
+**Publication time is kept, not used.** `RawCandleEvent.published_at`
+(optional) carries a vendor's stated publication time. Validation refuses one
+that is not an aware timestamp, predates the event it reports, or postdates
+receipt (each beyond the clock-skew allowance). It reaches `Observation` and
+`StreamRecord` for audit and delay measurement only: it is excluded from
+duplicate detection, and nothing orders, confirms or ages a candle by it.
+
+**Failure is "unknown", never "nothing".** Every reader turns a raising source
+or one that exceeds its bound into an explicit unavailable answer - never an
+empty list that would read as "no news" - and logs the source name and
+exception type only. Bounds refuse; they do not truncate.
+
+## Durable verification and source status (Phase 15, part 2B)
+
+Part 2B makes the contract-fact review auditable and the state of every
+external source inspectable. It connects no provider and invents no contract
+value or session hour.
+
+    app/operator/fact_review      local command - the only journal writer
+            │
+            ▼
+    application/sourcing          FactVerificationService (submit, decide,
+            │                     publish) · SourceStatusService (read-only)
+            ▼
+    application/ports             FactVerificationStore
+            ▼
+    adapters/persistence          SqlAlchemyFactVerificationStore
+                                  (migration 0009_fact_verification)
+
+    api/routes/sources            GET capabilities · metadata/{symbol} ·
+                                  calendar/{symbol} · reviews
+
+**The authorization boundary.** This application has no authentication. A
+reviewer name in a request body is not an identity, Host and Origin checks
+are not authorization, and a URL that looks official is not a reviewed
+document. So there is **no HTTP route that writes a review**: the source API
+is GET-only, and a test pins every path and method it serves. Reviews are
+written by `python -m app.operator.fact_review`, which needs shell and
+database access on the host. The reviewer name it records is the operator's
+assertion; the API labels it `OPERATOR_ASSERTION_NOT_AUTHENTICATED`, and
+nothing claims otherwise. The command never fetches a URL, opens a referenced
+file or reads a spreadsheet, never backdates (it stamps its own clock), and
+refuses an approval without `--document-checked`. Import contracts keep it a
+separate root that nothing imports, and keep the source API away from it and
+from every trading module.
+
+**The durable journal.** Three append-only tables; a trigger refuses UPDATE
+and DELETE on each. `fact_submissions` holds claims and has no status column.
+`fact_review_decisions` holds one decision per submission (the primary key is
+the submission) together with its result - `APPROVED`, `REJECTED` or
+`REFUSED` with a code - in the same row, so an approval and its evidence are
+one write and cannot disagree. Checks make an approval without an attested
+document, or a refusal without a code, unrepresentable. `contract_fact_records`
+holds published records; each fact column pairs a submission id with a result
+column fixed to `'APPROVED'`, and the pair is a foreign key to the decision's
+`(submission_id, result)`. PostgreSQL therefore refuses a record citing a
+rejected, refused or missing decision, even from a writer that bypasses the
+application. Every write is one `INSERT ... ON CONFLICT DO NOTHING`: an
+identical retry is idempotent, different content under a held identity is a
+typed conflict, and two racing, conflicting decisions produce exactly one
+row. The store never assigns a verification status itself - reading a record
+re-judges each cited submission and decision through the domain review
+boundary.
+
+**Knowledge time and market time.** A record keeps the period it governs
+(`effective_from`/`effective_until`, market time) apart from `known_at`, the
+audit time the journal first held it. `assess_fact_records(..., known_by=T)`
+treats records not yet held at T as absent - including a later correction -
+and judges staleness at T. A metadata question is answered *as known* by
+default (`known_by` = now); the retrospective question, "what do we know
+today about that period", must be asked explicitly (`retrospective=true`),
+is labelled in the response, and cannot be combined with a knowledge
+boundary. Replay, backtest and shadow read no facts at all, so a later
+correction cannot rewrite a published research decision.
+
+**Status, question by question.** The metadata status answers separately:
+whether a source claims a value, whether an operator examined the evidence,
+whether the publisher is authoritative, whether the record is for this
+contract, whether it governs the requested market time, whether the system
+knew it by then, whether it is current - and whether a financial consumer may
+use it, which is `false` in this build (a `Literal[False]` in the schema). The
+fields are multiplier, tick size, tick value (`NOT_REVIEWABLE`: the review
+boundary has no such fact), and expiry (`MISSING` when the record states
+none); an unknown field has no value, never a zero. A refused conflict now
+carries both values (`resolution: UNRESOLVED`). Reading more than 64 records
+for one contract decides nothing.
+
+**Capability matrix from the real composition.** `SourceComposition` is
+built in `app/main.py` from what the process holds: the provider setting
+(only `none`), no declaration, no grant, no connection, whether the Phase 13
+simulation is composed, and no calendar source. Each category reports
+configured, licensed, connected, available, fresh and verified separately; in
+this deployment all six are `NOT_CONFIGURED`. The simulation is reported as
+what it is and changes no capability; journalled records set "verified" for
+contract metadata and change no capability either.
+
+**Calendar.** The composed calendar still answers `UNAVAILABLE` for every
+moment. Part 2B added audits of the date-specific model: a zero-length or
+overnight interval is refused, overlapping intervals are refused, two records
+for one date with different offsets (a transition day) or different shapes (a
+late correction) are `UNAVAILABLE`, and an unlisted date is `UNAVAILABLE`.
+
+**Bounds.** Review pages are keyset-paginated on a 64-bit sequence
+(`limit` 1-100); records per contract are capped; the frontend keeps at most
+200 review entries. Each read is two or three SQL statements whatever its
+size - records and their evidence are read in two queries, not one per
+record.
+
+**The workspace.** A read-only "Veri kaynakları" screen: overview, per-category
+sources, contract facts, session calendar and review history. It has no
+verify, approve or publish control; where a person would look for one it
+explains the operator process. Beginner mode explains the difference between
+price data and contract facts, why verification matters, why a missing
+calendar blocks session claims and why no live exchange price is shown; Pro
+mode adds codes, flags, references, effective periods, verification and
+knowledge times, conflicts and refusal codes. Both show the same verdicts. The
+frontend schema rejects a response claiming a connected provider or enabled
+financial use.
+
+## Final validation of the source foundation (Phase 15, part 2C)
+
+Part 2C validated Parts 1-2B through real PostgreSQL, the composed
+application, Docker, nginx and real Chromium, and fixed what that surfaced.
+It adds no capability and connects no provider.
+
+**The privilege boundary, stated exactly.** Writing the verification journal
+requires running `python -m app.operator.fact_review` with the database
+credentials - that is, shell access to a host that holds `.env`. The command
+authenticates no one: `--submitted-by`, `--reviewer` and `--document-checked`
+are the operator's assertions, recorded and labelled as such. The HTTP
+application uses **the same database role**, and that role owns the journal
+tables (measured, and pinned by a test). The append-only triggers therefore
+bind the *application code* and any writer that does not alter the schema; a
+person holding the credentials can `ALTER TABLE ... DISABLE TRIGGER`. There is
+no separate operator role in this build. The HTTP surface itself has no write
+route for the journal; that was verified by attempting every write verb
+through nginx, not by reading OpenAPI alone.
+
+**Retries are idempotent by content.** The operator command stamps
+`submitted_at` and `decided_at` from its own clock, so a retried command is
+never byte-identical. `same_claim` and `same_decision` compare everything
+except that asserted time; the first journalled time stands, and any other
+difference is a conflict. Before this, a genuine retry was reported as
+`SUBMISSION_ID_TAKEN` / `ALREADY_DECIDED`.
+
+**Server clock over asserted clock.** A submission or decision dated after the
+server clock is refused (`FUTURE_DATED`); an earlier (backdated) assertion is
+kept as the operator's claim, and knowledge time remains the journal's own
+`recorded_at`. Field widths, an empty effective period and a naive time are
+refused as typed codes before any write. A value the database cannot hold is
+`VALUE_OUT_OF_BOUNDS` - no longer misreported as "journal unreachable" - and
+check-constraint refusals carry their own codes.
+
+**Margins are listed, not omitted.** The metadata status reports
+`initial_margin` and `maintenance_margin` as `NOT_REVIEWABLE`, beside
+`tick_value`: the review boundary cannot verify them, and their absence is
+visible rather than read as zero.
+
+**The workspace at small widths and from the keyboard.** A wide Pro table
+widened the page at 390 and 320 px because the tab panel, a grid item, had no
+`min-width: 0`; it now scrolls inside its wrapper. The tabs follow the same
+roving-tabindex pattern as Live and Shadow (arrows, Home, End), and a polite
+status region announces the screen's state.
+
 ## Cross-cutting decisions
 
 **Decimal at the data boundary, float inside the indicators.** Candle OHLCV

@@ -19,6 +19,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.adapters.persistence import (  # noqa: F401  (registering these defines the schema)
     backtest_models,
+    fact_models,
     paper_models,
     replay_models,
     shadow_models,
@@ -90,6 +91,9 @@ class TestSchema:
         # policy decided and what it saw, and opens nothing. Part 2A added two
         # more: published price developments (a level touched, never a fill,
         # with no quantity or profit column) and creation attempt keys.
+        # Phase 15 Part 2B added three for the contract-fact verification
+        # journal: claims, review decisions and published records. None holds a
+        # price, a position or money, and all three are append-only.
         assert names == {
             "alembic_version",
             "paper_positions",
@@ -107,6 +111,9 @@ class TestSchema:
             "shadow_journal",
             "shadow_outcomes",
             "shadow_run_attempts",
+            "fact_submissions",
+            "fact_review_decisions",
+            "contract_fact_records",
         }
 
     async def test_money_columns_are_exact_numeric(self, database: Database) -> None:

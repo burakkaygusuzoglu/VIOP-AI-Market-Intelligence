@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -20,12 +21,14 @@ from app.adapters.performance.backtest_source import BacktestRunPerformanceSourc
 from app.adapters.performance.paper_source import SqlPaperPerformanceSource
 from app.adapters.persistence.backtest_store import SqlAlchemyBacktestStore
 from app.adapters.persistence.database import Database
+from app.adapters.persistence.fact_store import SqlAlchemyFactVerificationStore
 from app.adapters.persistence.health import SqlAlchemyDatabaseHealth
 from app.adapters.persistence.journal_store import SqlAlchemyJournalStore
 from app.adapters.persistence.paper_store import SqlAlchemyPaperStore
 from app.adapters.persistence.replay_store import SqlAlchemyReplayStore
 from app.adapters.persistence.shadow_store import SqlAlchemyShadowStore
 from app.adapters.products.futures import FuturesSnapshotCodec
+from app.adapters.sourcing.unavailable_calendar import UnavailableSessionCalendar
 from app.adapters.system.clock import SystemClock
 from app.api.limits import RequestSizeLimitMiddleware, bounded_validation_response
 from app.api.middleware import RequestContextMiddleware
@@ -50,11 +53,13 @@ from app.api.routes.replay import router as replay_router
 from app.api.routes.screenshots import get_analyzer
 from app.api.routes.screenshots import router as screenshots_router
 from app.api.routes.shadow import router as shadow_router
+from app.api.routes.sources import router as sources_router
 from app.application.live.workspace import LiveWorkspace
 from app.application.performance.service import PerformanceService
 from app.application.shadow.ports import ShadowStoreUnavailableError
 from app.application.shadow.service import ShadowRunner
 from app.application.shadow.workspace import ShadowWorkspace, recover_interrupted_runs
+from app.application.sourcing.source_status import SourceComposition, SourceStatusService
 from app.application.use_cases.get_liveness import GetLiveness
 from app.application.use_cases.get_system_health import GetSystemHealth
 from app.application.vision.decode import configure_image_safety
@@ -219,6 +224,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await recover_interrupted_runs(shadow_store, clock)
             except ShadowStoreUnavailableError:
                 logger.warning("shadow restart reconciliation skipped: journal unreachable")
+        # Phase 15 Part 2B. Source status is read-only and always composed, so
+        # it can say what is *not* here. It describes this process: the
+        # provider setting (only "none" is accepted), no grant, no connection,
+        # the Phase 13 simulation if composed, and the calendar that always
+        # answers UNAVAILABLE. The verification journal is read here and
+        # written only by the local operator command - no HTTP route writes
+        # it, and no risk, paper, backtest or shadow composition reads it.
+        application.state.source_status = SourceStatusService(
+            composition=SourceComposition(
+                market_data_provider=settings.market_data_provider,
+                simulated_market_data=live_workspace is not None,
+                calendar_source_composed=False,
+            ),
+            store=SqlAlchemyFactVerificationStore(database),
+            calendar=UnavailableSessionCalendar(),
+            clock=clock.now,
+            metadata_max_age=timedelta(days=settings.fact_verification_max_age_days),
+            # No provider delivers anything, so this bound never applies yet.
+            delivery_max_age=timedelta(minutes=5),
+        )
         application.state.live_heartbeat_seconds = settings.live_heartbeat_seconds
         application.state.get_liveness = GetLiveness(
             clock=clock,
@@ -295,6 +320,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(backtest_router, prefix=settings.api_prefix)
     application.include_router(live_router, prefix=settings.api_prefix)
     application.include_router(shadow_router, prefix=settings.api_prefix)
+    application.include_router(sources_router, prefix=settings.api_prefix)
 
     # The composition root fills the provider seams. Overriding a dependency is
     # how the *application* injects its adapters here, not a test-only hook -

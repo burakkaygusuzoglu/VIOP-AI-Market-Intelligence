@@ -304,9 +304,21 @@ class TestHistoricalMockFreshnessIsNotCurrency:
         assert status_of(market).availability is Availability.AVAILABLE
 
     def test_every_provenance_has_a_stated_currency_and_none_is_current(self) -> None:
+        """Moved with the Phase 15 boundary, not weakened.
+
+        Phase 13 had one provenance and one currency. Phase 15 Part 1 made the
+        real-exchange labels expressible, so ``CURRENT`` now exists - but only
+        for ``REAL_EXCHANGE_LIVE``, which needs a licence grant nothing in this
+        build holds. What this guarded still holds for every label the build
+        can actually carry: none of them is current.
+        """
         for provenance in StreamProvenance:
-            assert market_currency_of(provenance) is MarketCurrency.HISTORICAL
-        assert [member.value for member in MarketCurrency] == ["HISTORICAL"]
+            currency = market_currency_of(provenance)  # every label has one
+            if not provenance.requires_grant:
+                assert currency is MarketCurrency.HISTORICAL
+        current = [p for p in StreamProvenance if market_currency_of(p) is MarketCurrency.CURRENT]
+        assert current == [StreamProvenance.REAL_EXCHANGE_LIVE]
+        assert StreamProvenance.REAL_EXCHANGE_LIVE.requires_grant
 
     def test_a_connected_fresh_stream_is_still_not_a_current_quote(self) -> None:
         market = state()

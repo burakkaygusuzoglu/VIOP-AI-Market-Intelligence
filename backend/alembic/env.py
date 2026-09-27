@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.adapters.persistence import (
     backtest_models,  # noqa: F401  (registers Phase 12 tables)
+    fact_models,  # noqa: F401  (registers Phase 15 tables)
     journal_models,  # noqa: F401  (registers Phase 10 table)
     paper_models,  # noqa: F401  (registers Phase 9 tables)
     replay_models,  # noqa: F401  (registers Phase 11 tables)

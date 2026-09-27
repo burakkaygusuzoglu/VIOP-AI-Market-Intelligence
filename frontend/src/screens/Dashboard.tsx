@@ -33,7 +33,7 @@ const FUTURE_MODULES = [
     name: 'Gerçek zamanlı borsa verisi',
     phase: 'Faz 15',
     reason:
-      'Lisanslı bir piyasa verisi sağlayıcısı yok. Canlı izleme ekranı yalnızca saklanan geçmiş veriyi simüle akış olarak oynatır.',
+      'Lisanslı bir piyasa verisi sağlayıcısı yok. Canlı izleme ekranı yalnızca saklanan geçmiş veriyi simüle akış olarak oynatır. Kaynak durumu "Veri kaynakları" ekranındadır.',
   },
   {
     name: 'Strateji ve kurulum performansı',
@@ -51,6 +51,7 @@ export interface DashboardProps {
   readonly onBacktest: () => void;
   readonly onLive: () => void;
   readonly onShadow: () => void;
+  readonly onSources: () => void;
 }
 
 export function Dashboard({
@@ -61,6 +62,7 @@ export function Dashboard({
   onBacktest,
   onLive,
   onShadow,
+  onSources,
 }: DashboardProps) {
   return (
     <div className="dashboard-screen">
@@ -92,6 +94,9 @@ export function Dashboard({
         </button>
         <button type="button" className="dashboard-screen__secondary" onClick={onShadow}>
           GÖLGE MODU (YALNIZCA GÖZLEM)
+        </button>
+        <button type="button" className="dashboard-screen__secondary" onClick={onSources}>
+          VERİ KAYNAKLARI VE DOĞRULAMA
         </button>
         <p className="dashboard-screen__intro">
           Kağıt işlemler yalnızca simülasyondur: gerçek emir oluşturulmaz veya gönderilmez.

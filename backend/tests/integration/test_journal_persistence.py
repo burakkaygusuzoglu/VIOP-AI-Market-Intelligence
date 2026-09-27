@@ -17,6 +17,7 @@ from sqlalchemy import text
 
 from app.adapters.persistence import (
     backtest_models,  # noqa: F401  (registers Phase 12 tables)
+    fact_models,  # noqa: F401  (registers Phase 15 tables)
     journal_models,  # noqa: F401  (registers the table)
     replay_models,  # noqa: F401  (registers Phase 11 tables)
     shadow_models,  # noqa: F401  (registers Phase 14 tables)

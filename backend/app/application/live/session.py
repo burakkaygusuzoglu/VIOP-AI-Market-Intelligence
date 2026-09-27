@@ -70,6 +70,7 @@ from app.domain.live.state import (
 )
 from app.domain.live.validation import Rejection
 from app.domain.risk.sizing import AccountState, RiskPolicy
+from app.domain.sourcing.capability import LicenceGrant, authorize_provenance
 
 __all__ = [
     "LiveAnalysis",
@@ -142,7 +143,19 @@ class LiveSession:
         contracts: ContractMetadataProvider | None = None,
         backfill_limit: int = 500,
         observer: Callable[[StreamRecord], None] | None = None,
+        provider_id: str | None = None,
+        grant: LicenceGrant | None = None,
     ) -> None:
+        # Phase 15: a provider states its provenance; it does not get to carry
+        # a real-exchange one on its own say-so. Anything that claims licensed
+        # exchange data needs an authoritative grant naming this provider, or
+        # the session is refused here - before a single event is read.
+        authorize_provenance(
+            provider.provenance,
+            provider_id=provider_id or type(provider).__name__,
+            grant=grant,
+            at=clock.now(),
+        )
         self._provider = provider
         self._observer = observer
         self._clock = clock
@@ -237,6 +250,9 @@ class LiveSession:
                 event_time=event.event_time if isinstance(event.event_time, datetime) else None,
                 closed=event.closed is True,
                 sequence=event.sequence if isinstance(event.sequence, int) else None,
+                published_at=(
+                    event.published_at if isinstance(event.published_at, datetime) else None
+                ),
                 backfill=backfill,
             )
         )

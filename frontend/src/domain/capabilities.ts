@@ -186,6 +186,18 @@ export const CAPABILITIES: readonly Capability[] = [
     detail:
       'Kendi yüklediğiniz değiştirilemez geçmiş veri üzerinde mum mum ilerlersiniz. Her sayı, oturumun geçmiş piyasa anına göre üretilir; kapanışı o andan sonra olan hiçbir mum okunmaz. Oturumda kağıt pozisyon açmak, bu kurulumda doğrulanmış sözleşme meta verisi olmadığı için reddedilir.',
   },
+  {
+    id: 'source-status',
+    label: 'Veri kaynakları ve doğrulama durumu',
+    // Phase 15 Part 2B. Read-only routes over what this process composed and the
+    // durable verification journal. Always answers: with no provider, every
+    // category reads NOT_CONFIGURED. Writes happen only through the local
+    // operator command, never over HTTP.
+    state: 'AVAILABLE_NOW',
+    endpoint: 'GET /api/sources/capabilities',
+    detail:
+      'Kategori başına kaynak durumu, doğrulanmış sözleşme bilgileri, seans takvimi durumu ve inceleme geçmişi. Yalnızca okuma: doğrulama tarayıcıdan yapılamaz, sunucudaki operatör komutuyla yapılır. Gerçek veri sağlayıcısı bağlı değildir.',
+  },
 ] as const;
 
 export function capability(id: string): Capability | undefined {

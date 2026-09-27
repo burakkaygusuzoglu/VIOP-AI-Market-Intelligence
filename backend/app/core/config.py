@@ -13,7 +13,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 AppEnv = Literal["development", "test", "production"]
@@ -138,6 +138,22 @@ class Settings(BaseSettings):
     # A heartbeat says only that the connection is alive; it touches no market
     # state. Bounded so a typo cannot make an idle stream look dead or spin.
     live_heartbeat_seconds: float = Field(default=15.0, ge=0.5, le=300.0)
+
+    # ---------- External data providers (Phase 15) ----------
+    # Which licensed market-data provider to compose. "none" is the only value
+    # this build accepts: no provider adapter exists, because no licence and no
+    # credentials are available to verify one against. An unknown name refuses
+    # to start rather than falling back to anything.
+    market_data_provider: Literal["none"] = "none"
+    # The provider credential, when there is a provider. SecretStr, listed in
+    # `secret_values` so it is redacted from every log line; never echoed in a
+    # response. Setting it with no provider is a misconfiguration and refuses
+    # to start, so a token can never sit unused in an environment unnoticed.
+    market_data_provider_token: SecretStr | None = Field(default=None)
+    # Phase 15 Part 2B. How long an operator-verified contract fact counts as
+    # current before it must be re-verified against its document. Only the
+    # read-only source status uses it; no financial consumer reads the journal.
+    fact_verification_max_age_days: int = Field(default=30, ge=1, le=366)
     """Outer ceiling on an HTTP request body, enforced before it is read.
 
     Distinct from every per-field limit: those decide what an *analysis* will
@@ -185,6 +201,15 @@ class Settings(BaseSettings):
             return tuple(item.strip() for item in value.split(",") if item.strip())
         return value
 
+    @model_validator(mode="after")
+    def _a_token_needs_a_provider(self) -> Settings:
+        token = self.market_data_provider_token
+        if token is not None and token.get_secret_value() and self.market_data_provider == "none":
+            raise ValueError(
+                "MARKET_DATA_PROVIDER_TOKEN is set but no market data provider is configured"
+            )
+        return self
+
     @field_validator("log_level")
     @classmethod
     def _normalise_log_level(cls, value: str) -> str:
@@ -223,6 +248,10 @@ class Settings(BaseSettings):
             key = self.anthropic_api_key.get_secret_value()
             if key:
                 secrets.append(key)
+        if self.market_data_provider_token is not None:
+            token = self.market_data_provider_token.get_secret_value()
+            if token:
+                secrets.append(token)
         return tuple(secrets)
 
     @property

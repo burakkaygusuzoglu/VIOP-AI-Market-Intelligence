@@ -148,6 +148,24 @@ def validate(
             "event time is ahead of receive time by more than the permitted clock skew",
         )
 
+    published_at: datetime | None = None
+    if raw.published_at is not None:
+        if not isinstance(raw.published_at, datetime):
+            return Rejection(RejectionCode.MALFORMED, "published_at is not a timestamp")
+        if not _aware(raw.published_at):
+            return Rejection(RejectionCode.NAIVE_TIMESTAMP, "published_at has no timezone")
+        if raw.published_at < event_time - limits.max_clock_skew:
+            return Rejection(
+                RejectionCode.MALFORMED,
+                "published_at is earlier than the event it reports",
+            )
+        if raw.published_at > received_at + limits.max_clock_skew:
+            return Rejection(
+                RejectionCode.FUTURE_EVENT,
+                "published_at is after this system received the event",
+            )
+        published_at = raw.published_at
+
     sequence: int | None = None
     if raw.sequence is not None:
         if isinstance(raw.sequence, bool) or not isinstance(raw.sequence, int):
@@ -173,6 +191,7 @@ def validate(
         event_time=event_time,
         received_at=received_at,
         sequence=sequence,
+        published_at=published_at,
     )
 
 

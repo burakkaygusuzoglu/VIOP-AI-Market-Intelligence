@@ -34,8 +34,27 @@ def test_the_live_modules_exist_and_are_being_checked() -> None:
 
 
 class TestNoFalseLiveData:
-    def test_the_only_provenance_is_the_simulated_one(self) -> None:
-        assert [member.value for member in StreamProvenance] == ["SIMULATED_HISTORICAL_STREAM"]
+    def test_every_shipped_provider_declares_simulated_history(self) -> None:
+        """Moved with the Phase 15 boundary, not deleted.
+
+        Phase 13 asserted that ``StreamProvenance`` had one member. Phase 15
+        Part 1 made real-exchange provenances *expressible*, gated by a licence
+        grant (``tests/unit/sourcing``). What this guarded - that nothing this
+        build ships can put a real label on a stream - is now checked where it
+        can be broken: every provenance any shipped module returns.
+        """
+        returned = {
+            line.strip()
+            for _, body in text_of(sorted(APP.rglob("*.py")))
+            for line in body.splitlines()
+            if line.strip().startswith("return StreamProvenance.")
+        }
+        assert returned == {"return StreamProvenance.SIMULATED_HISTORICAL_STREAM"}
+
+    def test_real_exchange_labels_need_a_grant_and_simulation_never_does(self) -> None:
+        needs = {member.value for member in StreamProvenance if member.requires_grant}
+        assert needs == {"REAL_EXCHANGE_LIVE", "REAL_EXCHANGE_DELAYED", "PROVIDER_HISTORICAL"}
+        assert not StreamProvenance.SIMULATED_HISTORICAL_STREAM.requires_grant
 
     @pytest.mark.parametrize(
         "claim", ["EXCHANGE_VERIFIED", "LIVE_EXCHANGE_FEED", "BROKER_VERIFIED", "REAL_TIME_QUOTE"]

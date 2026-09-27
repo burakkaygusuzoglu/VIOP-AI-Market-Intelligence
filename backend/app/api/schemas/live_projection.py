@@ -43,7 +43,7 @@ from app.application.live.workspace import (
     TimelineEntry,
     TimelinePage,
 )
-from app.domain.live.events import Observation
+from app.domain.live.events import MarketCurrency, Observation, StreamProvenance
 
 __all__ = [
     "LIVE_SYNTHESIS",
@@ -149,8 +149,8 @@ def session(view: SessionView) -> LiveSessionResponse:
             source_origin=_origin(source.summary.origin),
             provider_id=source.provider_id,
             instrument_label=source.summary.instrument_label,
-            provenance=snapshot.provenance.value,
-            market_currency=snapshot.market_currency.value,
+            provenance=simulated_provenance(snapshot.provenance),
+            market_currency=historical_currency(snapshot.market_currency),
         ),
         lifecycle=view.lifecycle.value,
         end_origin=None if view.end_origin is None else view.end_origin.value,
@@ -284,8 +284,8 @@ def analysis_response(result: AnalysisResult) -> LiveAnalysisResponse:
     assert isinstance(versions, tuple)  # noqa: S101 - built by LiveSession
     return LiveAnalysisResponse(
         session_id=result.view.session_id,
-        provenance=analysis.provenance.value,
-        market_currency=analysis.market_currency.value,
+        provenance=simulated_provenance(analysis.provenance),
+        market_currency=historical_currency(analysis.market_currency),
         market_as_of=_required(analysis.market_as_of),
         requested_at=_required(analysis.requested_at),
         included=[tf.value for tf in analysis.included],
@@ -334,3 +334,23 @@ def sse_frame(item: LiveEventEnvelope) -> str:
     data = json.dumps(item.model_dump(mode="json"), separators=(",", ":"))
     head = f"id: {item.event_id}\n" if item.event_id is not None else ""
     return f"{head}data: {data}\n\n"
+
+
+def simulated_provenance(provenance: StreamProvenance) -> Literal["SIMULATED_HISTORICAL_STREAM"]:
+    """The only provenance this API may state (Phase 15 Part 1).
+
+    Real-exchange provenances became expressible in the domain but are not
+    attainable without a licence grant, and this API has never been reviewed
+    for them. A stream carrying anything else is refused here rather than
+    serialized under a label that would misdescribe it.
+    """
+    if provenance is not StreamProvenance.SIMULATED_HISTORICAL_STREAM:
+        raise ValueError(f"the live API does not serve {provenance.value} streams")
+    return "SIMULATED_HISTORICAL_STREAM"
+
+
+def historical_currency(currency: MarketCurrency) -> Literal["HISTORICAL"]:
+    """The only market currency this API may state; see ``simulated_provenance``."""
+    if currency is not MarketCurrency.HISTORICAL:
+        raise ValueError(f"the live API does not serve {currency.value} data")
+    return "HISTORICAL"
